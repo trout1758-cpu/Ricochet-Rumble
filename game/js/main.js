@@ -18,7 +18,10 @@
   // ---------------------------------------------------------------------------
   // Settings (remembered between visits)
   // ---------------------------------------------------------------------------
-  const DEFAULTS = { wins: 5, arena: 'rotation', ammo: 'classic', mines: true, music: true, names: ['Player 1', 'Player 2'], colors: [0, 1] };
+  const DEFAULTS = {
+    wins: 5, arena: 'rotation', ammo: 'classic', mines: true, music: true, effects: true, replay: true,
+    names: ['Player 1', 'Player 2'], colors: [0, 1],
+  };
   const settings = loadSettings();
 
   function loadSettings() {
@@ -69,6 +72,8 @@
     goShown: false,
     mineBlink: new Map(),
     resultsAt: 0,
+    replay: new RR.Replay(),
+    replayInputDelay: 0,
   };
 
   const colorOf = (i) => C.PLAYER_COLORS[players[i].colorIndex];
@@ -135,7 +140,7 @@
   }
 
   function setBackdropWorld(idx) {
-    const w = new RR.World(RR.ARENA_DEFS[idx], { ammo: ammo(), minesEnabled: settings.mines, colors: [colorOf(0), colorOf(1)] });
+    const w = new RR.World(RR.ARENA_DEFS[idx], { ammo: ammo(), minesEnabled: settings.mines, effects: settings.effects, colors: [colorOf(0), colorOf(1)] });
     game.world = w;
     renderer.setWorld(w);
   }
@@ -161,6 +166,8 @@
     if (game.state === 'title' && (e.code === 'Enter' || e.code === 'Space')) {
       audio.unlock();
       goLobby();
+    } else if (game.state === 'replay' && ['Escape', 'Space', 'Enter'].includes(e.code)) {
+      endReplay();
     } else if (e.code === 'Escape') {
       if (!$('#screen-help').classList.contains('hidden')) show('#screen-help', false);
       else if (inMatch()) togglePause('');
@@ -172,7 +179,15 @@
   // ---------------------------------------------------------------------------
   // Lobby
   // ---------------------------------------------------------------------------
+  function clearReplay() {
+    game.replay.stop();
+    renderer.replayMode = false;
+    show('#replay-tag', false);
+    document.body.classList.remove('letterbox');
+  }
+
   function goLobby() {
+    clearReplay();
     game.state = 'lobby';
     game.paused = false;
     game.lobbyCountdown = 0;
@@ -223,6 +238,8 @@
       '#set-ammo': (v) => { settings.ammo = v; },
       '#set-mines': (v) => { settings.mines = v === 'on'; },
       '#set-music': (v) => { settings.music = v === 'on'; audio.setMusic(settings.music); },
+      '#set-effects': (v) => { settings.effects = v === 'on'; setBackdropWorld(previewArenaIndex()); },
+      '#set-replay': (v) => { settings.replay = v === 'on'; },
     };
     Object.entries(segs).forEach(([id, apply]) => {
       $(id).addEventListener('click', (e) => {
@@ -382,6 +399,12 @@
     $$('#set-ammo button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === settings.ammo)));
     $$('#set-mines button').forEach((b) => b.setAttribute('aria-pressed', String((b.dataset.v === 'on') === settings.mines)));
     $$('#set-music button').forEach((b) => b.setAttribute('aria-pressed', String((b.dataset.v === 'on') === settings.music)));
+    $$('#set-effects button').forEach((b) => b.setAttribute('aria-pressed', String((b.dataset.v === 'on') === settings.effects)));
+    $$('#set-replay button').forEach((b) => b.setAttribute('aria-pressed', String((b.dataset.v === 'on') === settings.replay)));
+    const mech = game.world && game.world.mechanic;
+    $('#arena-effect').textContent = !settings.effects ? 'Arena effects are off.'
+      : settings.arena === 'rotation' || settings.arena === 'random' ? 'Most themes have their own arena effect: ice, lava, black holes and more.'
+        : mech ? `Arena effect: ${mech.name}. ${mech.desc}.` : 'No special arena effect here.';
     $('#set-arena').value = settings.arena;
     RR.drawArenaPreview($('#arena-preview'), RR.ARENA_DEFS[previewArenaIndex()], [colorOf(0), colorOf(1)]);
 
@@ -483,6 +506,7 @@
     p.ready = false;
     if (ctl.assign) {
       ctl.onchange = () => onPhoneChange(i, ctl);
+      ctl.onprofile = (profile) => onPhoneProfile(i, ctl, profile);
       ctl.assign(i, colorOf(i).rgb);
     }
     ctl.rumble(150, 0.7);
@@ -606,16 +630,17 @@
   // Match flow
   // ---------------------------------------------------------------------------
   function newStats() {
-    return { shots: 0, hits: 0, bounces: 0, mines: 0, selfKills: 0, deaths: 0 };
+    return { shots: 0, hits: 0, bounces: 0, mines: 0, selfKills: 0, deaths: 0, trick: 0 };
   }
 
   function inMatch() {
-    return ['intro', 'play', 'grace', 'result'].includes(game.state);
+    return ['intro', 'play', 'grace', 'replay', 'result'].includes(game.state);
   }
 
   function startMatch() {
     if (!players.every((p) => p.controller)) return;
     audio.unlock();
+    clearReplay();
     game.lobbyCountdown = 0;
     game.qrWait = null;
     game.round = 0;
@@ -651,7 +676,7 @@
     const idx = pickArena();
     game.lastArena = idx;
     const def = RR.ARENA_DEFS[idx];
-    const w = new RR.World(def, { ammo: ammo(), minesEnabled: settings.mines, colors: [colorOf(0), colorOf(1)] });
+    const w = new RR.World(def, { ammo: ammo(), minesEnabled: settings.mines, effects: settings.effects, colors: [colorOf(0), colorOf(1)] });
     w.frozen = true;
     game.world = w;
     game.acc = 0;
@@ -662,8 +687,10 @@
     game.goShown = false;
     players.forEach((p) => { p.edge.fire = p.edge.mine = 0; });
     $('.hud-round').textContent = `Round ${game.round}`;
-    $('.hud-arena').textContent = def.name;
-    banner(`Round ${game.round}`, def.name);
+    const arenaLabel = w.mechanic ? `${def.name} · ${w.mechanic.name}` : def.name;
+    $('.hud-arena').textContent = arenaLabel;
+    banner(`Round ${game.round}`, arenaLabel);
+    game.replay.reset();
     audio.roundStart();
   }
 
@@ -702,6 +729,7 @@
       ['Ricochets', (p) => p.stats.bounces],
       ['Enemy hits', (p) => p.stats.hits],
       ['Mines laid', (p) => p.stats.mines],
+      ['Trick shots', (p) => p.stats.trick],
       ['Own goals', (p) => p.stats.selfKills],
     ];
     const head = `<thead><tr><th></th>${players.map((p, i) => `<th style="color:${colorOf(i).dark}">${escapeHtml(p.name)}</th>`).join('')}</tr></thead>`;
@@ -773,6 +801,16 @@
           break;
         case 'shellClash':
           audio.clash();
+          calloutFor(ev, true);
+          break;
+        case 'eruption':
+          audio.erupt();
+          break;
+        case 'swallow':
+          audio.swallow();
+          break;
+        case 'crateRegrow':
+          audio.regrow();
           break;
         case 'dry':
           audio.dry();
@@ -802,9 +840,131 @@
           else if (ev.by != null) players[ev.by].stats.hits++;
           rumble(ev.player, 450, 1);
           if (ev.by != null && ev.by !== ev.player) rumble(ev.by, 120, 0.7);
+          calloutFor(ev, true);
           break;
       }
     }
+  }
+
+  // Big on-screen shout for special kills. `count` adds to match stats (not
+  // when the moment is being shown again in a replay).
+  function calloutFor(ev, count) {
+    let text = null, color = '#ffcd45', big = false, trick = false;
+    if (ev.type === 'shellClash') {
+      if (ev.owners && ev.owners[0] !== ev.owners[1]) {
+        text = 'INTERCEPTED!';
+        color = '#ffffff';
+      }
+    } else if (ev.type === 'tankDestroyed') {
+      const shooter = ev.by != null ? colorOf(ev.by).light : '#ffcd45';
+      if (ev.cause === 'eruption') { text = 'ROASTED!'; color = '#ff8a3a'; }
+      else if (ev.by === ev.player) { text = 'OWN GOAL!'; color = '#ff7b5c'; }
+      else if (ev.cause === 'mine') { text = 'KABOOM!'; color = shooter; }
+      else if (ev.cause === 'shell') {
+        if (ev.bent > 0.35) { text = 'GRAVITY ASSIST!'; color = '#c9b0ff'; big = true; trick = true; }
+        else if (ev.bounces >= 3) { text = 'INCREDIBLE!'; color = shooter; big = true; trick = true; }
+        else if (ev.bounces === 2) { text = 'TRICK SHOT!'; color = shooter; big = true; trick = true; }
+        else if (ev.bounces === 1) { text = 'BANK SHOT!'; color = shooter; trick = true; }
+      }
+      if (count && trick && ev.by != null) players[ev.by].stats.trick++;
+    }
+    if (!text) return;
+    renderer.callout(text, ev.x, ev.y, color, big);
+    audio.callout(big);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Instant replay
+  // ---------------------------------------------------------------------------
+  function startReplayOrResolve() {
+    const r = game.replay;
+    const kill = settings.replay ? r.lastKill() : null;
+    const proxy = kill && r.start(game.world, kill.time - C.REPLAY_BEFORE, kill.time + C.REPLAY_AFTER);
+    if (!proxy) {
+      resolveRound();
+      return;
+    }
+    game.state = 'replay';
+    game.replayFocus = renderer.worldToCanvas(kill.x, kill.y);
+    game.replayInputDelay = 0.5;
+    renderer.fx.clear();
+    renderer.callouts = [];
+    renderer.replayMode = true;
+    renderer.world = proxy;
+    show('#replay-tag', true);
+    document.body.classList.add('letterbox');
+  }
+
+  function updateReplay(dt, inputs) {
+    if (game.paused) return;
+    const r = game.replay;
+    game.replayInputDelay -= dt;
+    if (game.replayInputDelay <= 0 && inputs.some((inp) => inp && (inp.fire > 0 || inp.pause > 0))) {
+      endReplay();
+      return;
+    }
+    for (const ev of r.advance(dt * C.REPLAY_SPEED)) {
+      renderer.onEvent(ev);
+      if (ev.type === 'fire') audio.fire();
+      else if (ev.type === 'bounce') audio.bounce();
+      else if (ev.type === 'explosion') audio.explosion(true);
+      else if (ev.type === 'tankDestroyed') audio.explosion(false);
+      if (ev.type === 'tankDestroyed' || ev.type === 'shellClash') calloutFor(ev, false);
+    }
+    if (r.done) endReplay();
+  }
+
+  function replayCamera() {
+    const p = game.replay.progress;
+    const zoomIn = Math.min(1, p / 0.35);
+    const zoomOut = p > 0.85 ? (p - 0.85) / 0.15 : 0;
+    const k = (zoomIn * zoomIn * (3 - 2 * zoomIn)) * (1 - zoomOut);
+    const W = renderer.W, H = renderer.H;
+    const z = 1 + 0.5 * k;
+    // keep the zoomed view inside the screen
+    const hw = W / (2 * z), hh = H / (2 * z);
+    return {
+      z,
+      fx: U.clamp(U.lerp(W / 2, game.replayFocus.x, k), hw, W - hw),
+      fy: U.clamp(U.lerp(H / 2, game.replayFocus.y, k), hh, H - hh),
+    };
+  }
+
+  function endReplay() {
+    if (game.state !== 'replay') return;
+    game.replay.stop();
+    renderer.replayMode = false;
+    renderer.world = game.world;
+    renderer.fx.clear();
+    renderer.callouts = [];
+    show('#replay-tag', false);
+    document.body.classList.remove('letterbox');
+    resolveRound();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Names and colours set from a phone in the lobby
+  // ---------------------------------------------------------------------------
+  function onPhoneProfile(i, ctl, profile) {
+    const p = players[i];
+    if (game.state !== 'lobby' || p.controller !== ctl) return;
+    const name = String(profile.name || '').replace(/[\u0000-\u001f]/g, '').trim().slice(0, 12);
+    if (name) {
+      p.name = name;
+      settings.names[i] = name;
+      $(`.player-card[data-player="${i}"] .pname`).value = name;
+    }
+    const ci = profile.color;
+    if (ci < C.PLAYER_COLORS.length && ci !== players[1 - i].colorIndex && ci !== p.colorIndex) {
+      p.colorIndex = ci;
+      settings.colors[i] = ci;
+      ctl.assign(i, colorOf(i).rgb);
+      applyPlayerColors();
+      setBackdropWorld(previewArenaIndex());
+    }
+    saveSettings();
+    audio.click();
+    refreshLobby();
   }
 
   function mineBeeps() {
@@ -857,7 +1017,9 @@
         w.update(step, frames);
         game.acc -= step;
       }
-      handleWorldEvents(w.drainEvents());
+      const events = w.drainEvents();
+      handleWorldEvents(events);
+      if (game.state !== 'intro') game.replay.capture(w, events);
       mineBeeps();
     }
 
@@ -888,7 +1050,7 @@
         }
         break;
       case 'grace':
-        if (game.timer <= 0) resolveRound();
+        if (game.timer <= 0) startReplayOrResolve();
         break;
       case 'result':
         if (game.timer <= 0) {
@@ -942,7 +1104,7 @@
       if (game.paused) state = P.STATE.PAUSED;
       else if (game.state === 'intro') state = P.STATE.COUNTDOWN;
       else if (game.state === 'play' || game.state === 'grace') state = P.STATE.PLAYING;
-      else if (game.state === 'result') state = P.STATE.ROUND_OVER;
+      else if (game.state === 'result' || game.state === 'replay') state = P.STATE.ROUND_OVER;
       else if (game.state === 'over') state = P.STATE.MATCH_OVER;
       const w = game.world;
       const live = inMatch() && w;
@@ -953,6 +1115,7 @@
         p.ready,
         ammo().max,
       );
+      if (c.lobby) c.lobby(p.colorIndex, players[1 - i].colorIndex, p.name);
     });
   }
 
@@ -983,12 +1146,16 @@
       case 'over':
         updateOver(inputs);
         break;
+      case 'replay':
+        updateReplay(dt, inputs);
+        break;
       default:
         updateMatch(dt, inputs);
     }
 
     const view = { labels: game.state === 'intro', aims: [] };
-    if (inMatch() && game.world) {
+    if (game.state === 'replay') view.camera = replayCamera();
+    else if (inMatch() && game.world) {
       inputs.forEach((inp, i) => {
         if (!inp) return;
         if (inp.aimMode === 'point') view.aims[i] = { show: true, mode: 'point', x: inp.aimX, y: inp.aimY };

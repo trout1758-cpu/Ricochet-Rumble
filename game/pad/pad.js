@@ -7,6 +7,7 @@
   const AIM_DEADZONE = 0.32;
   const MSG_HEARTBEAT = 0;
   const MSG_KICK = 4;
+  const PALETTE = RR.CFG.PLAYER_COLORS;
 
   const canvas = document.getElementById('pad');
   const ctx = canvas.getContext('2d');
@@ -54,6 +55,7 @@
   let playerIndex = -1;
   let playerColor = 'rgb(200,200,215)';
   let game = null;
+  let lobbyInfo = null; // { my, other, name } from the game
 
   const padId = (() => {
     try {
@@ -118,6 +120,11 @@
           game = { state: b[1], myWins: b[2], theirWins: b[3], winsNeeded: b[4], shellsLeft: b[5], minesLeft: b[6], ready: b[7] !== 0, shellsMax: b[8] };
         }
         break;
+      case P.MSG_LOBBY:
+        if (b.length >= 4) {
+          lobbyInfo = { my: b[1], other: b[2], name: new TextDecoder().decode(b.slice(4, 4 + b[3])) };
+        }
+        break;
       case MSG_KICK:
         conn = b[1] === 1 ? 'full' : 'kicked';
         playerIndex = -1;
@@ -166,7 +173,7 @@
   let W = 0, H = 0;
   const safe = { left: 0, top: 0, right: 0, bottom: 0 };
   let topBottom = 0, stickR = 0, moveHomeX = 0, moveHomeY = 0, aimHomeX = 0, aimHomeY = 0;
-  const mineBtn = {}, pauseBtn = {}, settingsBtn = {}, helpBox = { left: 0, top: 0, right: 0, bottom: 0 };
+  const mineBtn = {}, pauseBtn = {}, settingsBtn = {}, pill = {}, helpBox = { left: 0, top: 0, right: 0, bottom: 0 };
 
   function rect(r, l, t, rr, b) {
     r.left = l; r.top = t; r.right = rr; r.bottom = b;
@@ -193,10 +200,10 @@
     moveHomeY = H * 0.64;
     aimHomeX = mirrorX(W - safe.right - W * 0.21);
     aimHomeY = H * 0.64;
-    const mr = stickR * 0.62;
-    const mx = mirrorX(W - safe.right - mr - 18 * dp);
-    const my = topBottom + mr + 14 * dp;
-    rect(mineBtn, mx - mr, my - mr, mx + mr, my + mr);
+    // MINE sits top-centre, between the thumbs.
+    const mr = stickR * 0.55;
+    const my = topBottom + mr + 6 * dp;
+    rect(mineBtn, W / 2 - mr, my - mr, W / 2 + mr, my + mr);
     const b = 44 * dp;
     const top = safe.top + (topBottom - safe.top - b) / 2;
     rect(settingsBtn, W - safe.right - 14 * dp - b, top, W - safe.right - 14 * dp, top + b);
@@ -216,6 +223,7 @@
   const hit = (r, x, y, slop = 10 * dp) => x >= r.left - slop && x <= r.right + slop && y >= r.top - slop && y <= r.bottom + slop;
   const isMoveSide = (x) => (prefs.swap ? x >= W / 2 : x < W / 2);
   const needsRetry = () => conn === 'kicked' || conn === 'full';
+  const canEditProfile = () => conn === 'connected' && playerIndex >= 0 && lobbyInfo && game && game.state === P.STATE.LOBBY;
 
   function pointerDown(id, x, y) {
     if (hit(pauseBtn, x, y)) {
@@ -223,6 +231,8 @@
       sendState();
     } else if (hit(settingsBtn, x, y)) {
       openSettings();
+    } else if (canEditProfile() && hit(pill, x, y)) {
+      openProfile();
     } else if (hit(mineBtn, x, y, 14 * dp)) {
       minePointer = id;
       state.mineCount = (state.mineCount + 1) & 0xff;
@@ -332,8 +342,43 @@
     }
   }
 
-  // ---- settings sheet -------------------------------------------------------------------------
   const $ = (id) => document.getElementById(id);
+
+  // ---- name & colour (lobby only) ----------------------------------------------------------
+  let pickedColor = 0;
+  function openProfile() {
+    pickedColor = lobbyInfo.my;
+    $('profile-name').value = lobbyInfo.name || '';
+    const box = $('profile-colors');
+    box.innerHTML = '';
+    PALETTE.forEach((c, i) => {
+      const b = document.createElement('button');
+      b.style.background = c.body;
+      b.title = c.name;
+      b.disabled = i === lobbyInfo.other;
+      b.setAttribute('aria-checked', String(i === pickedColor));
+      b.addEventListener('click', () => {
+        pickedColor = i;
+        box.querySelectorAll('button').forEach((x, k) => x.setAttribute('aria-checked', String(k === i)));
+      });
+      box.appendChild(b);
+    });
+    $('profile').classList.remove('hidden');
+  }
+  $('profile-cancel').addEventListener('click', () => $('profile').classList.add('hidden'));
+  $('profile-save').addEventListener('click', () => {
+    const name = $('profile-name').value.trim().slice(0, 12);
+    const nb = P.nameBytes(name, 17);
+    const msg = new Uint8Array(3 + nb.length);
+    msg.set([P.PROFILE, pickedColor, nb.length]);
+    msg.set(nb, 3);
+    if (ws && ws.readyState === WebSocket.OPEN) ws.send(msg);
+    $('profile-name').blur();
+    $('profile').classList.add('hidden');
+  });
+  $('profile').addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
+
+  // ---- settings sheet -------------------------------------------------------------------------
   function openSettings() {
     $('opt-release').checked = prefs.fireOnRelease;
     $('opt-haptics').checked = prefs.haptics;
@@ -416,7 +461,7 @@
     // centre divider
     ctx.strokeStyle = rgba(255, 255, 255, 28);
     ctx.lineWidth = 2 * dp;
-    for (let y = topBottom + 12 * dp; y < h - 12 * dp; y += 20 * dp) line(w / 2, y, w / 2, y + 10 * dp);
+    for (let y = mineBtn.bottom + 64 * dp; y < h - 12 * dp; y += 20 * dp) line(w / 2, y, w / 2, y + 10 * dp);
 
     animate = drawTopBar(now) || animate;
 
@@ -454,7 +499,10 @@
     // Connection pill (left)
     let dot, label;
     if (conn === 'connected') {
-      if (playerIndex >= 0) { dot = playerColor; label = `PLAYER ${playerIndex + 1}`; } else { dot = 'rgb(92,196,97)'; label = 'CONNECTED'; }
+      if (playerIndex >= 0) {
+        dot = playerColor;
+        label = lobbyInfo && lobbyInfo.name ? `P${playerIndex + 1} · ${lobbyInfo.name.toUpperCase()}` : `PLAYER ${playerIndex + 1}`;
+      } else { dot = 'rgb(92,196,97)'; label = 'CONNECTED'; }
     } else if (conn === 'connecting') { dot = 'rgb(255,205,69)'; label = 'CONNECTING…'; }
     else if (conn === 'lost') { dot = 'rgb(255,205,69)'; label = 'RECONNECTING…'; }
     else if (conn === 'full') { dot = 'rgb(255,90,74)'; label = 'GAME IS FULL'; }
@@ -464,7 +512,14 @@
     const tw = ctx.measureText(label).width;
     const pillH = 36 * dp;
     const left = safe.left + 14 * dp;
-    roundRect(left, midY - pillH / 2, left + tw + 46 * dp, midY + pillH / 2, pillH / 2, playerIndex >= 0 ? playerColor : rgba(255, 255, 255, 40));
+    rect(pill, left, midY - pillH / 2, left + tw + 46 * dp, midY + pillH / 2);
+    roundRect(pill.left, pill.top, pill.right, pill.bottom, pillH / 2, playerIndex >= 0 ? playerColor : rgba(255, 255, 255, 40));
+    if (canEditProfile()) {
+      font(700, 12 * dp);
+      ctx.fillStyle = rgba(255, 255, 255, 170);
+      ctx.fillText('✎ Tap to change name & colour', left + 8 * dp, pill.bottom + 16 * dp);
+      font(900, 15 * dp);
+    }
     let pulse = 1;
     if (conn === 'connecting' || conn === 'lost') {
       const s = Math.sin(now / 250);
@@ -497,14 +552,14 @@
       if (msg) {
         font(900, 17 * dp);
         ctx.fillStyle = g.state === P.STATE.LOBBY && g.ready ? 'rgb(120,230,120)' : 'rgb(255,205,69)';
-        ctx.fillText(msg, w / 2, g.state === P.STATE.LOBBY ? midY + 6 * dp : topBottom + 46 * dp);
+        ctx.fillText(msg, w / 2, mineBtn.bottom + 48 * dp);
       }
       // Shells left
       if (g.state === P.STATE.PLAYING || g.state === P.STATE.COUNTDOWN) {
         const max = Math.max(1, Math.min(10, g.shellsMax));
         const sw = 8 * dp, sh = 18 * dp, gap = 5 * dp;
         let x = w / 2 - (max * sw + (max - 1) * gap) / 2;
-        const yy = topBottom + 6 * dp;
+        const yy = mineBtn.bottom + 8 * dp;
         for (let k = 0; k < max; k++) {
           roundRect(x, yy, x + sw, yy + sh, sw / 2, k < g.shellsLeft ? 'rgb(244,240,230)' : rgba(255, 255, 255, 40));
           x += sw + gap;

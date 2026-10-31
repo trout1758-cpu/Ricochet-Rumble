@@ -43,6 +43,34 @@ RR.CFG = {
     rocket:  { label: 'Rocket',  speed: 9.6, bounces: 1, max: 2, desc: 'fast · 1 bounce · 2 shells' },
   },
 
+  // Theme mechanics ("arena effects", switchable in the lobby), keyed by theme
+  MECH: {
+    frost:    { name: 'Slippery ice', desc: 'Tanks slide on the ice' },
+    space:    { name: 'Black holes', desc: 'Black holes bend shells and swallow them' },
+    volcano:  { name: 'Eruptions', desc: 'Lava spits fireballs: get out of the red circles' },
+    beach:    { name: 'Tide', desc: 'The tide comes in and slows tanks near the water' },
+    playroom: { name: 'Bouncy blocks', desc: 'Shells bounce one extra time' },
+    sandbox:  { name: 'Sandstorms', desc: 'Sandstorms blow through and hide the arena' },
+    garden:   { name: 'Regrowth', desc: 'Blasted planters grow back' },
+  },
+  ICE_GRIP: 2.0,            // how quickly tanks match the stick on ice (higher = less slide)
+  HOLE_RADIUS: 2.8,         // black hole pull range
+  HOLE_PULL: 2.4,
+  HOLE_CORE: 0.3,           // shells closer than this are swallowed
+  ERUPT_FIRST: 6,
+  ERUPT_EVERY: [7, 11],
+  ERUPT_FUSE: 1.5,
+  ERUPT_RADIUS: 0.95,
+  TIDE_CYCLE: [14, 2, 7, 2],   // calm, rising, high, falling (seconds)
+  TIDE_SLOW: 0.5,
+  STORM_CYCLE: [16, 2, 6, 2],
+  REGROW_TIME: 12,
+
+  // Instant replay
+  REPLAY_BEFORE: 2.4,       // seconds of action before the last kill
+  REPLAY_AFTER: 0.7,
+  REPLAY_SPEED: 0.5,
+
   PLAYER_COLORS: [
     { name: 'Tomato',  body: '#e8553f', dark: '#a8321f', light: '#ff8a6e', rgb: [232, 85, 63] },
     { name: 'Cobalt',  body: '#3b7be0', dark: '#21509c', light: '#78a9ff', rgb: [59, 123, 224] },

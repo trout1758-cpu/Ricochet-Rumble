@@ -10,6 +10,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -18,10 +20,14 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import android.provider.Settings
+import android.text.InputFilter
+import android.text.InputType
 import android.view.View
 import android.view.WindowInsets
 import android.view.WindowInsetsController
 import android.view.WindowManager
+import android.widget.EditText
+import android.widget.LinearLayout
 import android.widget.Toast
 
 class MainActivity : Activity(), BleControllerServer.Listener, ControllerView.Listener {
@@ -210,6 +216,7 @@ class MainActivity : Activity(), BleControllerServer.Listener, ControllerView.Li
             }
             is Feedback.Rumble -> rumble(fb.durationMs, fb.amplitude)
             is Feedback.Status -> view.setGameStatus(fb.status)
+            is Feedback.Lobby -> view.lobby = fb
             null -> Unit
         }
     }
@@ -219,6 +226,62 @@ class MainActivity : Activity(), BleControllerServer.Listener, ControllerView.Li
     override fun onControlsChanged() {
         seq = (seq + 1) and 0xff
         server.update(Protocol.encode(view.state, seq))
+    }
+
+    // Lobby only: change the player's name and tank colour from the phone.
+    override fun onProfileRequested() {
+        val info = view.lobby ?: return
+        val dp = resources.displayMetrics.density
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding((22 * dp).toInt(), (8 * dp).toInt(), (22 * dp).toInt(), 0)
+        }
+        val nameField = EditText(this).apply {
+            setText(info.name)
+            setSingleLine()
+            hint = "Your name"
+            filters = arrayOf(InputFilter.LengthFilter(12))
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS
+        }
+        box.addView(nameField)
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(0, (16 * dp).toInt(), 0, (4 * dp).toInt())
+        }
+        box.addView(row)
+        var picked = info.myColor
+        val swatches = mutableListOf<View>()
+        fun refresh() {
+            swatches.forEachIndexed { i, v ->
+                v.background = GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL
+                    setColor(Protocol.PALETTE[i])
+                    if (i == picked) setStroke((4 * dp).toInt(), Color.WHITE)
+                }
+            }
+        }
+        Protocol.PALETTE.indices.forEach { i ->
+            val size = (40 * dp).toInt()
+            val swatch = View(this).apply {
+                layoutParams = LinearLayout.LayoutParams(size, size).apply { marginEnd = (10 * dp).toInt() }
+                isEnabled = i != info.otherColor // the other player's colour
+                alpha = if (isEnabled) 1f else 0.2f
+                setOnClickListener {
+                    picked = i
+                    refresh()
+                }
+            }
+            swatches.add(swatch)
+            row.addView(swatch)
+        }
+        refresh()
+        AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle("Your tank")
+            .setView(box)
+            .setPositiveButton("Save") { _, _ -> server.sendMessage(Protocol.encodeProfile(picked, nameField.text.toString())) }
+            .setNegativeButton("Cancel", null)
+            .setOnDismissListener { goImmersive() }
+            .show()
     }
 
     override fun onRetryRequested() {

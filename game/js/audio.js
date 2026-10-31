@@ -129,6 +129,24 @@ window.RR = window.RR || {};
       this.burst({ dur: 0.35, vol: 0.35, freq: 500, to: 150, q: 1.5 });
     }
 
+    callout(big) {
+      const notes = big ? [784, 988, 1175, 1568] : [880, 1175];
+      notes.forEach((f, i) => this.tone({ freq: f, type: 'triangle', dur: 0.12, vol: 0.12, at: i * 0.06 }));
+    }
+
+    erupt() {
+      this.burst({ dur: 0.5, vol: 0.4, freq: 300, to: 900, q: 0.8, type: 'lowpass' });
+      this.tone({ freq: 90, to: 160, type: 'sine', dur: 0.4, vol: 0.3 });
+    }
+
+    swallow() {
+      this.tone({ freq: 600, to: 80, type: 'sine', dur: 0.35, vol: 0.18 });
+    }
+
+    regrow() {
+      [660, 880].forEach((f, i) => this.tone({ freq: f, type: 'sine', dur: 0.1, vol: 0.08, at: i * 0.07 }));
+    }
+
     countdown() {
       this.tone({ freq: 660, type: 'square', dur: 0.12, vol: 0.08 });
     }

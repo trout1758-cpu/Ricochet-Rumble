@@ -38,6 +38,7 @@ class ControllerView(context: Context) : View(context) {
         fun onControlsChanged()
         fun onSettingsRequested()
         fun onRetryRequested()
+        fun onProfileRequested()
     }
 
     var listener: Listener? = null
@@ -68,6 +69,13 @@ class ControllerView(context: Context) : View(context) {
         invalidate()
     }
 
+    /** Name and colours from the game, for the lobby editor. */
+    var lobby: Feedback.Lobby? = null
+        set(value) { field = value; invalidate() }
+
+    fun canEditProfile() =
+        connection is BleControllerServer.Status.Connected && playerIndex >= 0 && lobby != null && game?.state == GameStatus.LOBBY
+
     fun setGameStatus(s: GameStatus) {
         game = s
         invalidate()
@@ -85,6 +93,7 @@ class ControllerView(context: Context) : View(context) {
     private val mineBtn = RectF()
     private val pauseBtn = RectF()
     private val settingsBtn = RectF()
+    private val pill = RectF()
 
     private class Stick {
         var pointer = -1
@@ -135,10 +144,10 @@ class ControllerView(context: Context) : View(context) {
         moveHomeY = h * 0.64f
         aimHomeX = mirrorX(w - safe.right - w * 0.21f)
         aimHomeY = h * 0.64f
-        val mr = stickR * 0.62f
-        val mx = mirrorX(w - safe.right - mr - 18 * dp)
-        val my = topBottom + mr + 14 * dp
-        mineBtn.set(mx - mr, my - mr, mx + mr, my + mr)
+        // MINE sits top-centre, between the thumbs.
+        val mr = stickR * 0.55f
+        val my = topBottom + mr + 6 * dp
+        mineBtn.set(w / 2 - mr, my - mr, w / 2 + mr, my + mr)
         val b = 44 * dp
         val top = safe.top + (topBottom - safe.top - b) / 2
         settingsBtn.set(w - safe.right - 14 * dp - b, top, w - safe.right - 14 * dp, top + b)
@@ -185,6 +194,10 @@ class ControllerView(context: Context) : View(context) {
                 state.pauseCount = (state.pauseCount + 1) and 0xff
                 performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                 changed()
+            }
+            canEditProfile() && hit(pill, x, y) -> {
+                performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                listener?.onProfileRequested()
             }
             hit(settingsBtn, x, y) -> {
                 performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
@@ -323,7 +336,7 @@ class ControllerView(context: Context) : View(context) {
         // centre divider
         stroke.color = Color.argb(28, 255, 255, 255)
         stroke.strokeWidth = 2 * dp
-        var y = topBottom + 12 * dp
+        var y = mineBtn.bottom + 64 * dp
         while (y < h - 12 * dp) {
             c.drawLine(w / 2, y, w / 2, y + 10 * dp, stroke)
             y += 20 * dp
@@ -367,7 +380,12 @@ class ControllerView(context: Context) : View(context) {
         // Connection pill (left)
         val (dotColor, label) = when (val s = connection) {
             is BleControllerServer.Status.Connected ->
-                if (playerIndex >= 0) playerColor to "PLAYER ${playerIndex + 1}" else Color.rgb(92, 196, 97) to "CONNECTED"
+                if (playerIndex >= 0) {
+                    val name = lobby?.name?.takeIf { it.isNotBlank() }
+                    playerColor to (if (name != null) "P${playerIndex + 1} · ${name.uppercase()}" else "PLAYER ${playerIndex + 1}")
+                } else {
+                    Color.rgb(92, 196, 97) to "CONNECTED"
+                }
             is BleControllerServer.Status.Advertising -> Color.rgb(255, 205, 69) to "WAITING FOR GAME"
             is BleControllerServer.Status.Error -> Color.rgb(255, 90, 74) to "BLUETOOTH PROBLEM"
             BleControllerServer.Status.Off -> Color.GRAY to "BLUETOOTH OFF"
@@ -377,9 +395,16 @@ class ControllerView(context: Context) : View(context) {
         val tw = text.measureText(label)
         val pillH = 36 * dp
         val left = safe.left + 14 * dp
-        tmp.set(left, midY - pillH / 2, left + tw + 46 * dp, midY + pillH / 2)
+        pill.set(left, midY - pillH / 2, left + tw + 46 * dp, midY + pillH / 2)
         fill.color = if (playerIndex >= 0) playerColor else Color.argb(40, 255, 255, 255)
-        c.drawRoundRect(tmp, pillH / 2, pillH / 2, fill)
+        c.drawRoundRect(pill, pillH / 2, pillH / 2, fill)
+        if (canEditProfile()) {
+            bodyText.textSize = 12 * dp
+            bodyText.textAlign = Paint.Align.LEFT
+            bodyText.color = Color.argb(170, 255, 255, 255)
+            c.drawText("✎ Tap to change name & colour", left + 8 * dp, pill.bottom + 16 * dp, bodyText)
+            bodyText.textAlign = Paint.Align.CENTER
+        }
         var pulse = 1f
         if (connection is BleControllerServer.Status.Advertising) {
             pulse = 0.5f + 0.5f * sin(now / 250.0).toFloat().let { it * it }
@@ -413,7 +438,7 @@ class ControllerView(context: Context) : View(context) {
             if (msg != null) {
                 text.textSize = 17 * dp
                 text.color = if (g.state == GameStatus.LOBBY && g.ready) Color.rgb(120, 230, 120) else Color.rgb(255, 205, 69)
-                c.drawText(msg, w / 2, if (g.state == GameStatus.LOBBY) midY + 6 * dp else topBottom + 46 * dp, text)
+                c.drawText(msg, w / 2, mineBtn.bottom + 48 * dp, text)
             }
             // Shells left
             if (g.state == GameStatus.PLAYING || g.state == GameStatus.COUNTDOWN) {
@@ -424,7 +449,7 @@ class ControllerView(context: Context) : View(context) {
                 val gap = 5 * dp
                 val total = max * sw + (max - 1) * gap
                 var x = w / 2 - total / 2
-                val yy = topBottom + 6 * dp
+                val yy = mineBtn.bottom + 8 * dp
                 for (k in 0 until max) {
                     tmp.set(x, yy, x + sw, yy + sh)
                     fill.color = if (k < n) Color.rgb(244, 240, 230) else Color.argb(40, 255, 255, 255)

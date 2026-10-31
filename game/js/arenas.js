@@ -232,7 +232,7 @@ RR.ARENA_DEFS = [
       '.#..##.....',
       '....#...###',
       '..#.#......',
-      '.1#........',
+      '.1#....x...',
       '..#.#......',
       '....#...###',
       '.#..##.....',
@@ -464,14 +464,14 @@ RR.ARENA_DEFS = [
       '..#........',
       '..#...#....',
       '..#...#...#',
-      '......#...#',
+      '....o.#...#',
       '..........#',
       '.1.........',
       '..........#',
       '......#...#',
       '..#...#...#',
       '..#...#....',
-      '..#........',
+      '..#.o......',
       '...........',
     ],
   },
@@ -575,5 +575,5 @@ RR.buildArena = function buildArena(def) {
     }
   });
   if (!spawns[0]) throw new Error(`${def.name}: missing spawn`);
-  return { name: def.name, theme: RR.THEMES[def.theme], themeKey: def.theme, grid, spawns };
+  return { name: def.name, theme: RR.THEMES[def.theme], themeKey: def.theme, sym: def.sym || 'mirror', grid, spawns };
 };

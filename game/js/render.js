@@ -164,6 +164,8 @@ window.RR = window.RR || {};
       this.shake = 0;
       this.time = 0;
       this.trail = new Map();
+      this.callouts = [];
+      this.replayMode = false; // replays re-run events without adding decals
       this.dpr = 1;
       this.W = 1; this.H = 1;
       this.s = 32; this.ox = 0; this.oy = 0;
@@ -198,6 +200,11 @@ window.RR = window.RR || {};
       };
     }
 
+    // Canvas-pixel position of a world point (used to aim the replay camera).
+    worldToCanvas(x, y) {
+      return { x: this.ox + x * this.s, y: this.oy + y * this.s };
+    }
+
     worldToCss(x, y) {
       return { x: (this.ox + x * this.s) / this.dpr, y: (this.oy + y * this.s) / this.dpr };
     }
@@ -207,6 +214,8 @@ window.RR = window.RR || {};
       this.decals = [];
       this.fx.clear();
       this.trail.clear();
+      this.callouts = [];
+      this.replayMode = false;
       this.shake = 0;
       this.rebuild();
     }
@@ -862,6 +871,7 @@ window.RR = window.RR || {};
 
     // ---- decals (tread marks, scorch marks, wrecks) ------------------------------------
     addDecal(d) {
+      if (this.replayMode) return;
       this.decals.push(d);
       if (this.decals.length > 9000) {
         let drop = 2500;
@@ -1009,6 +1019,30 @@ window.RR = window.RR || {};
           this.addDecal({ type: 'scorch', x: ev.x, y: ev.y, r: ev.r * 0.85, seed: (rand() * 1e6) | 0 });
           this.shake = Math.max(this.shake, 1);
           break;
+        case 'eruption':
+          for (let i = 0; i < 6; i++) {
+            const a = rand() * U.TAU, sp = 1 + rand() * 2;
+            fx.add({ kind: 'fire', x: ev.x, y: ev.y, z: 0.1, r0: 0.2, r1: 0.05, life: 0.4, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, vz: 2 });
+          }
+          fx.add({ kind: 'smoke', x: ev.x, y: ev.y, z: 0.2, r0: 0.2, r1: 0.6, a0: 0.5, life: 0.9, color: '#4a3c36', vz: 0.8 });
+          break;
+        case 'swallow':
+          fx.add({ kind: 'ring', x: ev.x, y: ev.y, r0: 0.7, r1: 0.05, life: 0.35, color: '#c9b0ff' });
+          for (let i = 0; i < 8; i++) {
+            const a = rand() * U.TAU;
+            fx.add({ kind: 'spark', x: ev.x + Math.cos(a) * 0.6, y: ev.y + Math.sin(a) * 0.6, vx: -Math.cos(a) * 3, vy: -Math.sin(a) * 3, life: 0.2, drag: 2, color: '#c9b0ff' });
+          }
+          break;
+        case 'crateRegrow':
+          for (let i = 0; i < 8; i++) {
+            const a = rand() * U.TAU, sp = 0.6 + rand() * 1.5;
+            fx.add({
+              kind: 'debris', x: ev.c + 0.5, y: ev.r + 0.5, z: 0.3, vz: 2 + rand() * 2, gravity: 10,
+              vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, size: 0.08 + rand() * 0.06,
+              color: ['#57a84b', '#76c25f', '#3f8a3a'][i % 3], spin: (rand() - 0.5) * 12, life: 0.9, drag: 2,
+            });
+          }
+          break;
         case 'crateDestroyed': {
           const th = w.theme;
           for (let i = 0; i < 9; i++) {
@@ -1076,11 +1110,18 @@ window.RR = window.RR || {};
       const sx = sh > 0.3 ? (Math.random() - 0.5) * sh : 0;
       const sy = sh > 0.3 ? (Math.random() - 0.5) * sh : 0;
 
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      // Optional camera (instant replay zooms in on the action).
+      const cam = view && view.camera;
+      const z = cam ? cam.z : 1;
+      const tx = cam ? this.W / 2 - z * cam.fx : 0;
+      const ty = cam ? this.H / 2 - z * cam.fy : 0;
+      this.camera = { z, tx, ty };
+      ctx.setTransform(z, 0, 0, z, tx, ty);
       ctx.drawImage(this.staticLayer, 0, 0);
-      ctx.setTransform(1, 0, 0, 1, sx, sy);
+      ctx.setTransform(z, 0, 0, z, tx + sx, ty + sy);
       ctx.drawImage(this.decalLayer, this.ox, this.oy);
 
+      this.drawFloorEffects(ctx, w);
       this.drawShadows(ctx);
       for (const m of w.mines) this.drawMine(ctx, m);
 
@@ -1103,11 +1144,193 @@ window.RR = window.RR || {};
         view.aims.forEach((a, i) => { if (a && a.show && w.tanks[i].alive) this.drawAim(ctx, w.tanks[i], a); });
       }
       for (const b of w.bullets) this.drawShell(ctx, b);
+      this.drawAirEffects(ctx, w, dt);
 
       ctx.drawImage(this.fgLayer, 0, 0);
       this.fx.draw(ctx, this);
       if (view && view.labels) for (const t of w.tanks) if (t.alive) this.drawLabel(ctx, t);
+      this.drawStorm(ctx, w, sx, sy);
+      this.drawCallouts(ctx, dt);
       ctx.setTransform(1, 0, 0, 1, 0, 0);
+    }
+
+    // ---- theme mechanics --------------------------------------------------------------
+    drawFloorEffects(ctx, w) {
+      const s = this.s, ox = this.ox, oy = this.oy;
+      if (w.mechKey === 'beach' && w.tide > 0) {
+        // the tide washes over the shallows
+        ctx.save();
+        for (let r = 0; r < C.ROWS; r++) {
+          for (let c = 0; c < C.COLS; c++) {
+            if (!w.shallow[r * C.COLS + c]) continue;
+            ctx.globalAlpha = 0.45 * w.tide;
+            ctx.fillStyle = w.theme.pit;
+            ctx.fillRect(ox + c * s, oy + r * s, s, s);
+            ctx.globalAlpha = 0.5 * w.tide;
+            ctx.strokeStyle = '#e6fbff';
+            ctx.lineWidth = Math.max(1, s * 0.03);
+            const wave = Math.sin(this.time * 2 + c * 0.7 + r) * s * 0.08;
+            ctx.beginPath();
+            ctx.ellipse(ox + (c + 0.5) * s + wave, oy + (r + 0.55) * s, s * 0.22, s * 0.07, 0, Math.PI * 1.1, Math.PI * 1.9);
+            ctx.stroke();
+          }
+        }
+        ctx.restore();
+      }
+      if (w.mechKey === 'space') {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(200,170,255,0.45)';
+        ctx.lineWidth = Math.max(1, s * 0.03);
+        for (const h of w.holes) {
+          for (let k = 0; k < 2; k++) {
+            const a = this.time * (2.2 + k) + k * Math.PI;
+            ctx.beginPath();
+            ctx.ellipse(ox + h.x * s, oy + (h.y + 0.08) * s, s * (0.45 + k * 0.2), s * (0.22 + k * 0.1), 0.3, a, a + 1.6);
+            ctx.stroke();
+          }
+        }
+        ctx.restore();
+      }
+      for (const e of w.eruptions || []) {
+        // warning circle; the inner ring shrinks as the fireball comes down
+        const p = Math.min(1, e.t / e.fuse);
+        const X = ox + e.tx * s, Y = oy + e.ty * s, R = C.ERUPT_RADIUS * s;
+        const blink = 0.5 + 0.5 * Math.sin(this.time * (10 + p * 20));
+        ctx.fillStyle = `rgba(255,60,30,${0.15 + 0.2 * p * blink})`;
+        ctx.beginPath();
+        ctx.arc(X, Y, R, 0, U.TAU);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255,80,40,0.85)';
+        ctx.lineWidth = Math.max(1.5, s * 0.06);
+        ctx.setLineDash([s * 0.18, s * 0.12]);
+        ctx.beginPath();
+        ctx.arc(X, Y, R, 0, U.TAU);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        ctx.arc(X, Y, R * (1 - p) + 1, 0, U.TAU);
+        ctx.stroke();
+      }
+      for (const g of w.regrow || []) {
+        // a sprout grows where a planter will come back
+        const p = 1 - Math.max(0, g.t) / C.REGROW_TIME;
+        const X = ox + (g.c + 0.5) * s, Y = oy + (g.r + 0.6) * s;
+        ctx.fillStyle = 'rgba(70,45,25,0.35)';
+        ctx.beginPath();
+        ctx.ellipse(X, Y, s * 0.3, s * 0.15, 0, 0, U.TAU);
+        ctx.fill();
+        ctx.fillStyle = '#5fae4a';
+        const leaf = s * (0.05 + 0.16 * p);
+        ctx.beginPath();
+        ctx.ellipse(X - leaf * 0.6, Y - leaf * 0.5, leaf, leaf * 0.5, -0.6, 0, U.TAU);
+        ctx.ellipse(X + leaf * 0.6, Y - leaf * 0.5, leaf, leaf * 0.5, 0.6, 0, U.TAU);
+        ctx.fill();
+      }
+    }
+
+    drawAirEffects(ctx, w, dt) {
+      const s = this.s, ox = this.ox, oy = this.oy;
+      for (const e of w.eruptions || []) {
+        const p = Math.min(1, e.t / e.fuse);
+        const x = U.lerp(e.fx, e.tx, p), y = U.lerp(e.fy, e.ty, p);
+        const h = Math.sin(p * Math.PI) * 2.4 + 0.2;
+        ctx.fillStyle = `rgba(0,0,0,${0.15 + 0.15 * p})`;
+        ctx.beginPath();
+        ctx.ellipse(ox + x * s, oy + y * s, s * 0.22, s * 0.12, 0, 0, U.TAU);
+        ctx.fill();
+        const X = ox + x * s, Y = oy + (y - h) * s, R = s * 0.24;
+        const g = ctx.createRadialGradient(X, Y, 0, X, Y, R * 1.8);
+        g.addColorStop(0, '#fff3b0');
+        g.addColorStop(0.35, '#ffb02e');
+        g.addColorStop(0.7, 'rgba(230,70,20,0.8)');
+        g.addColorStop(1, 'rgba(230,70,20,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(X, Y, R * 1.8, 0, U.TAU);
+        ctx.fill();
+        if (dt > 0 && Math.random() < 0.6) {
+          this.fx.add({ kind: 'smoke', x, y, z: h, r0: 0.08, r1: 0.25, a0: 0.45, life: 0.5, color: '#5a4a44' });
+        }
+      }
+    }
+
+    drawStorm(ctx, w, sx, sy) {
+      if (w.mechKey !== 'sandbox' || !(w.storm > 0)) return;
+      if (!this.stormLayer || this.stormLayer.width !== this.W || this.stormLayer.height !== this.H) {
+        this.stormLayer = this.makeCanvas(this.W, this.H);
+      }
+      const sc = this.stormLayer.getContext('2d');
+      const { z, tx, ty } = this.camera;
+      const s = this.s, ox = this.ox, oy = this.oy;
+      sc.setTransform(1, 0, 0, 1, 0, 0);
+      sc.clearRect(0, 0, this.W, this.H);
+      sc.setTransform(z, 0, 0, z, tx + sx, ty + sy);
+      sc.globalCompositeOperation = 'source-over';
+      sc.fillStyle = `rgba(206,168,104,${0.86 * w.storm})`;
+      sc.fillRect(ox - s, oy - s * 1.2, (C.COLS + 2) * s, (C.ROWS + 2.2) * s);
+      // blowing sand streaks
+      sc.strokeStyle = `rgba(250,225,170,${0.5 * w.storm})`;
+      sc.lineWidth = Math.max(1, s * 0.04);
+      for (let i = 0; i < 46; i++) {
+        const y = oy + ((i * 37) % (C.ROWS * 10)) / 10 * s;
+        const x = ox + ((((i * 53) % 97) / 97) * (C.COLS + 4) * s + this.time * s * (7 + (i % 5))) % ((C.COLS + 4) * s) - 2 * s;
+        sc.beginPath();
+        sc.moveTo(x, y);
+        sc.lineTo(x + s * (0.6 + (i % 3) * 0.3), y + s * 0.05);
+        sc.stroke();
+      }
+      // each tank can still see its own surroundings
+      sc.globalCompositeOperation = 'destination-out';
+      for (const t of w.tanks) {
+        if (!t.alive) continue;
+        const X = ox + t.x * s, Y = oy + t.y * s;
+        const g = sc.createRadialGradient(X, Y, s * 1.4, X, Y, s * 2.9);
+        g.addColorStop(0, 'rgba(0,0,0,1)');
+        g.addColorStop(1, 'rgba(0,0,0,0)');
+        sc.fillStyle = g;
+        sc.beginPath();
+        sc.arc(X, Y, s * 2.9, 0, U.TAU);
+        sc.fill();
+      }
+      sc.globalCompositeOperation = 'source-over';
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.drawImage(this.stormLayer, 0, 0);
+      ctx.restore();
+    }
+
+    // ---- trick-shot callouts ---------------------------------------------------------
+    callout(text, x, y, color, big) {
+      this.callouts.push({ text, x, y, color: color || '#ffcd45', big: !!big, age: 0, life: 1.9 });
+    }
+
+    drawCallouts(ctx, dt) {
+      const s = this.s;
+      for (const c of this.callouts) {
+        c.age += dt;
+        const t = c.age;
+        const pop = t < 0.2 ? 0.4 + 0.75 * (t / 0.2) : t < 0.32 ? 1.15 - 0.15 * ((t - 0.2) / 0.12) : 1;
+        const alpha = t > c.life - 0.45 ? Math.max(0, (c.life - t) / 0.45) : 1;
+        ctx.save();
+        ctx.font = `${Math.round(s * (c.big ? 1.05 : 0.72))}px "Lilita One", "Arial Rounded MT Bold", system-ui, sans-serif`;
+        const half = ctx.measureText(c.text).width / 2 + s * 0.3;
+        const X = U.clamp(this.ox + c.x * s, this.ox + half, this.ox + C.COLS * s - half);
+        const Y = Math.max(this.oy + s * 0.9, this.oy + (c.y - 0.95 - t * 0.35) * s);
+        ctx.translate(X, Y);
+        ctx.scale(pop, pop);
+        ctx.rotate(-0.05);
+        ctx.globalAlpha = alpha;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.lineJoin = 'round';
+        ctx.lineWidth = s * 0.2;
+        ctx.strokeStyle = '#2a2230';
+        ctx.strokeText(c.text, 0, 0);
+        ctx.fillStyle = c.color;
+        ctx.fillText(c.text, 0, 0);
+        ctx.restore();
+      }
+      this.callouts = this.callouts.filter((c) => c.age < c.life);
     }
 
     spawnTrails(dt) {
