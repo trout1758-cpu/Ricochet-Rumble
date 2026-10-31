@@ -1,0 +1,13 @@
+{
+  "name": "Ricochet Pad",
+  "short_name": "Ricochet Pad",
+  "description": "Wi-Fi controller for Ricochet Rumble",
+  "start_url": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#1c1a26",
+  "theme_color": "#1c1a26",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
