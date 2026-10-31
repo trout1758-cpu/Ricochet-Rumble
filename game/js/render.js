@@ -462,6 +462,31 @@ window.RR = window.RR || {};
           ctx.strokeRect(s * 0.6, s * 0.6, w - s * 1.2, h - s * 1.2);
           break;
         }
+        case 'checker': {
+          // kitchen tiles with grout lines
+          ctx.fillStyle = th.floorAlt;
+          for (let r = 0; r < C.ROWS; r++) {
+            for (let c = 0; c < C.COLS; c++) {
+              if ((r + c) % 2) ctx.fillRect(c * s, r * s, s, s);
+            }
+          }
+          ctx.strokeStyle = th.patternInk;
+          ctx.lineWidth = Math.max(1, s * 0.03);
+          for (let x = 0; x <= C.COLS; x++) {
+            ctx.beginPath(); ctx.moveTo(x * s, 0); ctx.lineTo(x * s, h); ctx.stroke();
+          }
+          for (let y = 0; y <= C.ROWS; y++) {
+            ctx.beginPath(); ctx.moveTo(0, y * s); ctx.lineTo(w, y * s); ctx.stroke();
+          }
+          ctx.fillStyle = 'rgba(255,255,255,0.25)';
+          for (let i = 0; i < 40; i++) {
+            const x = rnd() * w, y = rnd() * h;
+            ctx.beginPath();
+            ctx.ellipse(x, y, s * 0.25, s * 0.05, -0.6, 0, U.TAU);
+            ctx.fill();
+          }
+          break;
+        }
         case 'grid': {
           ctx.lineWidth = 1;
           ctx.strokeStyle = 'rgba(210,230,255,0.09)';
@@ -496,6 +521,8 @@ window.RR = window.RR || {};
       const grid = this.world.grid;
       const isPit = (c, r) => c >= 0 && r >= 0 && c < C.COLS && r < C.ROWS && grid[r * C.COLS + c] === T.PIT;
       const water = th.pitStyle === 'water';
+      const lava = th.pitStyle === 'lava';
+      const voidPit = th.pitStyle === 'void';
       for (let r = 0; r < C.ROWS; r++) {
         for (let c = 0; c < C.COLS; c++) {
           if (!isPit(c, r)) continue;
@@ -516,6 +543,44 @@ window.RR = window.RR || {};
           if (!isPit(c - 1, r)) {
             ctx.fillStyle = 'rgba(0,0,0,0.18)';
             ctx.fillRect(x + inL, y + inT, Math.max(1, s * 0.08), s - inT - inB);
+          }
+          if (voidPit) {
+            // a little swirling black hole
+            const cx = x + s / 2, cy = y + s * 0.58;
+            const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, s * 0.5);
+            g.addColorStop(0, 'rgba(0,0,0,1)');
+            g.addColorStop(0.55, 'rgba(60,30,120,0.55)');
+            g.addColorStop(1, 'rgba(120,80,220,0)');
+            ctx.fillStyle = g;
+            ctx.fillRect(x + inL, y + inT, s - inL - inR, s - inT - inB);
+            ctx.strokeStyle = 'rgba(190,160,255,0.55)';
+            ctx.lineWidth = Math.max(1, s * 0.025);
+            for (let k = 0; k < 3; k++) {
+              ctx.beginPath();
+              ctx.ellipse(cx, cy, s * (0.12 + k * 0.08), s * (0.06 + k * 0.04), 0.4, k * 1.3, k * 1.3 + 2.4);
+              ctx.stroke();
+            }
+          }
+          if (lava) {
+            // cooling crust and bright bubbles
+            const rnd = U.rng(c * 29 + r * 13 + 3);
+            const g = ctx.createRadialGradient(x + s / 2, y + s * 0.6, 0, x + s / 2, y + s * 0.6, s * 0.7);
+            g.addColorStop(0, 'rgba(255,214,90,0.55)');
+            g.addColorStop(1, 'rgba(255,214,90,0)');
+            ctx.fillStyle = g;
+            ctx.fillRect(x + inL, y + inT, s - inL - inR, s - inT - inB);
+            ctx.fillStyle = 'rgba(60,20,10,0.45)';
+            for (let k = 0; k < 3; k++) {
+              ctx.beginPath();
+              ctx.ellipse(x + s * (0.2 + rnd() * 0.6), y + s * (0.45 + rnd() * 0.4), s * (0.08 + rnd() * 0.08), s * 0.05, rnd() * 3, 0, U.TAU);
+              ctx.fill();
+            }
+            ctx.fillStyle = 'rgba(255,240,160,0.8)';
+            for (let k = 0; k < 2; k++) {
+              ctx.beginPath();
+              ctx.arc(x + s * (0.2 + rnd() * 0.6), y + s * (0.5 + rnd() * 0.35), s * (0.025 + rnd() * 0.03), 0, U.TAU);
+              ctx.fill();
+            }
           }
           if (water) {
             const rnd = U.rng(c * 31 + r * 17 + 5);

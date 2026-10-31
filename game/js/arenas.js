@@ -1,10 +1,12 @@
 // Arena layouts and visual themes.
 //
-// Every arena is written as its LEFT half only (11 columns x 13 rows) and
-// mirrored to the right at load time, so all maps are perfectly fair.
+// Every arena is written as its LEFT half only (11 columns x 13 rows) and the
+// right half is generated at load time, so all maps are perfectly fair:
+// mirrored left-to-right by default, or rotated 180° with `sym: 'rotate'`
+// (players then start in opposite corners).
 // Legend:  .  floor      #  solid block      x  crate (mines destroy it)
 //          o  pit (blocks tanks, shells fly over)        1  player 1 spawn
-// The mirrored half turns "1" into player 2's spawn.
+// The generated half turns "1" into player 2's spawn.
 window.RR = window.RR || {};
 
 RR.TILE = { FLOOR: 0, WALL: 1, CRATE: 2, PIT: 3 };
@@ -70,6 +72,46 @@ RR.THEMES = {
     pit: '#0f1d33', pitWall: '#244a7c',
     tread: 'rgba(200,225,255,0.12)', scorch: '10,15,30',
   },
+  kitchen: {
+    label: 'Kitchen',
+    backdrop: '#3a2f2a', backdropLine: 'rgba(0,0,0,0.15)',
+    rimTop: '#ece6dc', rimSide: '#bdb3a4',
+    floor: '#f6f1e7', floorAlt: '#cfdde9', pattern: 'checker', patternInk: 'rgba(120,140,160,0.25)',
+    wallTop: '#d9534f', wallSide: '#a63a37', wallEdge: '#f08a86', wallStyle: 'toy',
+    crateTop: '#d8ae6e', crateSide: '#a77f45', crateMark: '#efd3a4', crateStyle: 'box',
+    pit: '#2b2b2e', pitWall: '#6e6e74',
+    tread: 'rgba(90,80,70,0.14)', scorch: '40,30,25',
+  },
+  volcano: {
+    label: 'Volcano',
+    backdrop: '#1d1312', backdropLine: 'rgba(255,90,40,0.06)',
+    rimTop: '#5c4b45', rimSide: '#3b2f2b',
+    floor: '#5d524d', floorAlt: '#4e4440', pattern: 'speckle', patternInk: 'rgba(20,10,8,0.35)',
+    wallTop: '#82786f', wallSide: '#57504a', wallEdge: '#a39a91', wallStyle: 'stone',
+    crateTop: '#7a5136', crateSide: '#553621', crateMark: '#5a3a24', crateStyle: 'planks',
+    pit: '#c2410c', pitWall: '#fbbf24', pitStyle: 'lava',
+    tread: 'rgba(15,8,5,0.25)', scorch: '15,8,5',
+  },
+  beach: {
+    label: 'Beach',
+    backdrop: '#2c5d72', backdropLine: 'rgba(255,255,255,0.06)',
+    rimTop: '#dcc59c', rimSide: '#b39a6c',
+    floor: '#f4e4b8', floorAlt: '#eddaa3', pattern: 'speckle', patternInk: 'rgba(170,140,80,0.25)',
+    wallTop: '#bdb6aa', wallSide: '#8d877c', wallEdge: '#dcd7ce', wallStyle: 'stone',
+    crateTop: '#b08f68', crateSide: '#836544', crateMark: '#7c5e3e', crateStyle: 'planks',
+    pit: '#2b8db0', pitWall: '#a6e8f2', pitStyle: 'water',
+    tread: 'rgba(150,120,70,0.18)', scorch: '50,40,25',
+  },
+  space: {
+    label: 'Space',
+    backdrop: '#080a16', backdropLine: 'rgba(160,180,255,0.04)',
+    rimTop: '#3d4769', rimSide: '#262d46',
+    floor: '#1c2242', floorAlt: '#252c56', pattern: 'sparkle', patternInk: 'rgba(170,190,255,0.35)',
+    wallTop: '#8b96ba', wallSide: '#5b6589', wallEdge: '#c5cde8', wallStyle: 'toy',
+    crateTop: '#e08c3c', crateSide: '#a8621f', crateMark: '#f3c27f', crateStyle: 'box',
+    pit: '#04050c', pitWall: '#4b3488', pitStyle: 'void',
+    tread: 'rgba(200,210,255,0.12)', scorch: '0,0,0',
+  },
 };
 
 RR.ARENA_DEFS = [
@@ -87,6 +129,24 @@ RR.ARENA_DEFS = [
       '...........',
       '...#.......',
       '...###.....',
+      '...........',
+      '...........',
+    ],
+  },
+  {
+    name: 'Dunes', theme: 'beach', sym: 'rotate',
+    half: [
+      '...........',
+      '.1.....oo..',
+      '.......oo..',
+      '..##.......',
+      '..#....x...',
+      '......xxx..',
+      'ooo........',
+      '...........',
+      '....#......',
+      '....##...oo',
+      '.........oo',
       '...........',
       '...........',
     ],
@@ -110,6 +170,24 @@ RR.ARENA_DEFS = [
     ],
   },
   {
+    name: 'Kitchen Table', theme: 'kitchen',
+    half: [
+      '...........',
+      '.xx....#...',
+      '.x.....#...',
+      '.......#...',
+      '....xx.....',
+      '..#........',
+      '.1#....####',
+      '..#........',
+      '....xx.....',
+      '.......#...',
+      '.x.....#...',
+      '.xx....#...',
+      '...........',
+    ],
+  },
+  {
     name: 'The Moat', theme: 'frost',
     half: [
       '...........',
@@ -123,6 +201,24 @@ RR.ARENA_DEFS = [
       '...#....ooo',
       '...#.......',
       '...#.......',
+      '...........',
+      '...........',
+    ],
+  },
+  {
+    name: 'Lava Lake', theme: 'volcano',
+    half: [
+      '...........',
+      '...........',
+      '..#.....ooo',
+      '..#.....o..',
+      '..#..x..o..',
+      '.....x.....',
+      '.1...x....o',
+      '.....x.....',
+      '..#..x..o..',
+      '..#.....o..',
+      '..#.....ooo',
       '...........',
       '...........',
     ],
@@ -146,6 +242,24 @@ RR.ARENA_DEFS = [
     ],
   },
   {
+    name: 'Starfield', theme: 'space', sym: 'rotate',
+    half: [
+      '...........',
+      '.1.........',
+      '.....#.....',
+      '..o......#.',
+      '.......o...',
+      '...#.......',
+      '.........#.',
+      '.o....#....',
+      '...........',
+      '....#....o.',
+      '.........#.',
+      '..#........',
+      '...........',
+    ],
+  },
+  {
     name: 'Checkerboard', theme: 'playroom',
     half: [
       '...........',
@@ -164,6 +278,24 @@ RR.ARENA_DEFS = [
     ],
   },
   {
+    name: 'Bridges', theme: 'beach',
+    half: [
+      '....o......',
+      '....o......',
+      '....o...#..',
+      '...........',
+      '....o......',
+      '....o...ooo',
+      '.1..o......',
+      '....o...ooo',
+      '....o......',
+      '...........',
+      '....o...#..',
+      '....o......',
+      '....o......',
+    ],
+  },
+  {
     name: 'Twin Forts', theme: 'blueprint',
     half: [
       '...........',
@@ -177,6 +309,24 @@ RR.ARENA_DEFS = [
       '....x...#..',
       '...........',
       '#####......',
+      '...........',
+      '...........',
+    ],
+  },
+  {
+    name: 'Three Lanes', theme: 'workshop',
+    half: [
+      '...........',
+      '...........',
+      '.######.###',
+      '...........',
+      '...........',
+      '.###.######',
+      '.1........#',
+      '.###.######',
+      '...........',
+      '...........',
+      '.######.###',
       '...........',
       '...........',
     ],
@@ -200,6 +350,24 @@ RR.ARENA_DEFS = [
     ],
   },
   {
+    name: 'Moat Castle', theme: 'frost',
+    half: [
+      '...........',
+      '...........',
+      '.......oooo',
+      '.......o...',
+      '.......o.##',
+      '.......o.#.',
+      '.1.....x.x.',
+      '.......o.#.',
+      '.......o.##',
+      '.......o...',
+      '.......oooo',
+      '...........',
+      '...........',
+    ],
+  },
+  {
     name: 'Crossroads', theme: 'frost',
     half: [
       '...........',
@@ -214,6 +382,24 @@ RR.ARENA_DEFS = [
       '..#.......#',
       '..##......#',
       '...........',
+      '...........',
+    ],
+  },
+  {
+    name: 'Pinball', theme: 'playroom',
+    half: [
+      '...........',
+      '.#.....#...',
+      '...#.....#.',
+      '.....#.....',
+      '.......#...',
+      '...#.....#.',
+      '.1...#.....',
+      '...#.....#.',
+      '.......#...',
+      '.....#.....',
+      '...#.....#.',
+      '.#.....#...',
       '...........',
     ],
   },
@@ -236,6 +422,24 @@ RR.ARENA_DEFS = [
     ],
   },
   {
+    name: 'Lava River', theme: 'volcano', sym: 'rotate',
+    half: [
+      '...........',
+      '.1.........',
+      '.......oo..',
+      '......oo...',
+      '..#..oo....',
+      '..#.oo.....',
+      '...oo...#..',
+      '..oo....#..',
+      '.oo........',
+      '...........',
+      '.....xx....',
+      '.....xx....',
+      '...........',
+    ],
+  },
+  {
     name: 'Toy Box', theme: 'playroom',
     half: [
       '...........',
@@ -253,6 +457,96 @@ RR.ARENA_DEFS = [
       '...........',
     ],
   },
+  {
+    name: 'Gauntlet', theme: 'space',
+    half: [
+      '...........',
+      '..#........',
+      '..#...#....',
+      '..#...#...#',
+      '......#...#',
+      '..........#',
+      '.1.........',
+      '..........#',
+      '......#...#',
+      '..#...#...#',
+      '..#...#....',
+      '..#........',
+      '...........',
+    ],
+  },
+  {
+    name: 'Bunkers', theme: 'sandbox',
+    half: [
+      '...........',
+      '...........',
+      '...xxx.....',
+      '..x...x....',
+      '..x.......#',
+      '...........',
+      '.1x....#...',
+      '...........',
+      '..x.......#',
+      '..x...x....',
+      '...xxx.....',
+      '...........',
+      '...........',
+    ],
+  },
+  {
+    name: 'Checkmate', theme: 'kitchen', sym: 'rotate',
+    half: [
+      '...........',
+      '.1.x...x...',
+      '...........',
+      '.x...#...x.',
+      '...........',
+      '...x...#...',
+      '.#.........',
+      '...#...x...',
+      '...........',
+      '.x...#...x.',
+      '...........',
+      '...x...x...',
+      '...........',
+    ],
+  },
+  {
+    name: 'Spiral', theme: 'blueprint', sym: 'rotate',
+    half: [
+      '...........',
+      '.########..',
+      '.#.........',
+      '.#.######..',
+      '.#.#.......',
+      '.#.#.###...',
+      '.1.#.#.....',
+      '...#.#.....',
+      '...#.#.....',
+      '...#.......',
+      '...######..',
+      '...........',
+      '...........',
+    ],
+  },
+  {
+    name: 'Snowball Fort', theme: 'frost',
+    half: [
+      '...........',
+      '..xxxx.....',
+      '..x........',
+      '..x...#....',
+      '......#..xx',
+      '...........',
+      '.1....##...',
+      '...........',
+      '......#..xx',
+      '..x...#....',
+      '..x........',
+      '..xxxx.....',
+      '...........',
+    ],
+  },
 ];
 
 // Expand a half-arena definition into a full grid + spawn points.
@@ -267,16 +561,17 @@ RR.buildArena = function buildArena(def) {
     for (let c = 0; c < COLS / 2; c++) {
       const ch = row[c];
       const mc = COLS - 1 - c;
+      const mr = def.sym === 'rotate' ? ROWS - 1 - r : r;
       let t = T.FLOOR;
       if (ch === '#') t = T.WALL;
       else if (ch === 'x') t = T.CRATE;
       else if (ch === 'o') t = T.PIT;
       else if (ch === '1') {
         spawns[0] = { x: c + 0.5, y: r + 0.5, angle: 0 };
-        spawns[1] = { x: mc + 0.5, y: r + 0.5, angle: Math.PI };
+        spawns[1] = { x: mc + 0.5, y: mr + 0.5, angle: Math.PI };
       }
       grid[r * COLS + c] = t;
-      grid[r * COLS + mc] = t;
+      grid[mr * COLS + mc] = t;
     }
   });
   if (!spawns[0]) throw new Error(`${def.name}: missing spawn`);
