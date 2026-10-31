@@ -1,5 +1,6 @@
 package com.ricochetrumble.controller
 
+import android.graphics.Color
 import java.util.UUID
 import kotlin.math.roundToInt
 
@@ -24,6 +25,18 @@ object Protocol {
     const val MSG_ASSIGN = 1
     const val MSG_RUMBLE = 2
     const val MSG_STATUS = 3
+    const val MSG_LOBBY = 5
+    const val PROFILE = 0x50
+
+    /** Tank colours, same order as PLAYER_COLORS in game/js/config.js. */
+    val PALETTE = intArrayOf(
+        Color.rgb(232, 85, 63),
+        Color.rgb(59, 123, 224),
+        Color.rgb(124, 194, 66),
+        Color.rgb(154, 90, 216),
+        Color.rgb(242, 182, 50),
+        Color.rgb(47, 181, 166),
+    )
 
     fun encode(s: ControllerState, seq: Int): ByteArray {
         val flags = (if (s.aimHeld) FLAG_AIM_HELD else 0) or (if (s.moveHeld) FLAG_MOVE_HELD else 0)
@@ -41,6 +54,23 @@ object Protocol {
         )
     }
 
+    /** Name/colour change from the lobby: [0x50, colorIndex, nameLen, ...UTF-8 name]. */
+    fun encodeProfile(colorIndex: Int, name: String): ByteArray {
+        val nameBytes = utf8Prefix(name.trim().take(12), 17)
+        return byteArrayOf(PROFILE.toByte(), colorIndex.toByte(), nameBytes.size.toByte()) + nameBytes
+    }
+
+    /** UTF-8 bytes of [text], cut at a character boundary to fit [max] bytes. */
+    fun utf8Prefix(text: String, max: Int): ByteArray {
+        var t = text
+        var b = t.toByteArray(Charsets.UTF_8)
+        while (b.size > max && t.isNotEmpty()) {
+            t = t.substring(0, t.offsetByCodePoints(t.length, -1))
+            b = t.toByteArray(Charsets.UTF_8)
+        }
+        return b
+    }
+
     private fun int8(v: Float): Byte = (v.coerceIn(-1f, 1f) * 127f).roundToInt().toByte()
 
     fun parseFeedback(b: ByteArray): Feedback? {
@@ -49,6 +79,12 @@ object Protocol {
         return when (u(0)) {
             MSG_ASSIGN -> if (b.size >= 5) Feedback.Assign(u(1), (0xff shl 24) or (u(2) shl 16) or (u(3) shl 8) or u(4)) else null
             MSG_RUMBLE -> if (b.size >= 3) Feedback.Rumble(u(1) * 10L, u(2).coerceIn(1, 255)) else null
+            MSG_LOBBY -> if (b.size >= 4) {
+                val len = minOf(u(3), b.size - 4)
+                Feedback.Lobby(u(1), u(2), String(b, 4, len, Charsets.UTF_8))
+            } else {
+                null
+            }
             MSG_STATUS -> if (b.size >= 9) Feedback.Status(GameStatus(u(1), u(2), u(3), u(4), u(5), u(6), u(7) != 0, u(8))) else null
             else -> null
         }
@@ -92,4 +128,5 @@ sealed class Feedback {
     data class Assign(val playerIndex: Int, val color: Int) : Feedback()
     data class Rumble(val durationMs: Long, val amplitude: Int) : Feedback()
     data class Status(val status: GameStatus) : Feedback()
+    data class Lobby(val myColor: Int, val otherColor: Int, val name: String) : Feedback()
 }

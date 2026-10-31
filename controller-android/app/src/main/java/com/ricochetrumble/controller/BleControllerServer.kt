@@ -57,6 +57,7 @@ class BleControllerServer(
     private var running = false
 
     private var latest: ByteArray = ByteArray(Protocol.INPUT_LEN)
+    private val oneShots = ArrayDeque<ByteArray>()
     private var notifyInFlight = false
     private var inFlightSince = 0L
     private var dirty = false
@@ -97,6 +98,12 @@ class BleControllerServer(
         gattServer = null
         inputChar = null
         listener.onStatus(Status.Off)
+    }
+
+    /** Queue a one-off message (e.g. a name change); sent before the next state update. */
+    fun sendMessage(bytes: ByteArray) {
+        oneShots.addLast(bytes)
+        pump()
     }
 
     /** Queue the newest controller state; only the latest one is ever sent. */
@@ -250,15 +257,16 @@ class BleControllerServer(
         val server = gattServer ?: return
         val dev = central ?: return
         val ch = inputChar ?: return
-        if (!subscribed || !dirty) return
+        if (!subscribed || (!dirty && oneShots.isEmpty())) return
         val now = SystemClock.uptimeMillis()
         // Some Bluetooth stacks occasionally drop onNotificationSent; don't stall forever.
         if (notifyInFlight && now - inFlightSince < 250) return
-        dirty = false
+        val oneShot = oneShots.removeFirstOrNull()
+        if (oneShot == null) dirty = false
         notifyInFlight = true
         inFlightSince = now
         lastSentAt = now
-        val value = latest
+        val value = oneShot ?: latest
         val ok = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             server.notifyCharacteristicChanged(dev, ch, false, value) == BluetoothGatt.GATT_SUCCESS
         } else {
@@ -269,7 +277,7 @@ class BleControllerServer(
         }
         if (!ok) {
             notifyInFlight = false
-            dirty = true
+            if (oneShot != null) oneShots.addFirst(oneShot) else dirty = true
         }
     }
 

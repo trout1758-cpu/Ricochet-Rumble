@@ -73,6 +73,11 @@ window.RR = window.RR || {};
     }
 
     handlePacket(dv) {
+      if (dv.byteLength && dv.getUint8(0) === P.PROFILE) {
+        const profile = P.decodeProfile(dv);
+        if (profile && this.onprofile) this.onprofile(profile);
+        return;
+      }
       const pkt = P.decodeInput(dv);
       if (!pkt) return;
       this.lastPacketAt = performance.now();
@@ -121,6 +126,18 @@ window.RR = window.RR || {};
       this.send(msg);
     }
 
+    // Name/colour info for the phone's lobby editor.
+    lobby(myColor, otherColor, name) {
+      const nb = P.nameBytes(name, 16);
+      const msg = new Uint8Array(4 + nb.length);
+      msg.set([P.MSG_LOBBY, myColor, otherColor, nb.length]);
+      msg.set(nb, 4);
+      const key = msg.join(',');
+      if (key === this.lastLobbyKey) return;
+      this.lastLobbyKey = key;
+      this.send(msg);
+    }
+
     send(bytes) {
       if (!this.connected || !this.feedbackChar) return;
       if (this.queue.length > 12) this.queue.shift();
@@ -153,6 +170,7 @@ window.RR = window.RR || {};
       this.state = null;
       this.queue = [];
       this.lastStatusKey = null;
+      this.lastLobbyKey = null;
       this.emitChange();
       if (!this.disposed) this.reconnect();
     }

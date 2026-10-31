@@ -137,6 +137,7 @@ window.RR = window.RR || {};
     resync() {
       this.last = null;
       this.lastStatusKey = null;
+      this.lastLobbyKey = null;
       if (this.assignMsg) this.send(this.assignMsg);
     }
 

@@ -29,11 +29,17 @@ RR.PROTO = {
   MSG_ASSIGN: 1,  // [1, playerIndex, r, g, b]
   MSG_RUMBLE: 2,  // [2, duration/10ms, amplitude 1..255]
   MSG_STATUS: 3,  // [3, state, myWins, theirWins, winsNeeded, shellsLeft, minesLeft, ready, shellsMax]
+  MSG_LOBBY: 5,   // [5, myColorIndex, otherColorIndex, nameLen, ...name UTF-8 (≤16 bytes)]
+
+  // Profile packet (phone -> game, on the input characteristic), sent from
+  // the lobby when a player edits their name or colour:
+  //  [0x50 'P', colorIndex (255 = unchanged), nameLen, ...name UTF-8 (≤17 bytes)]
+  PROFILE: 0x50,
 
   STATE: { LOBBY: 0, COUNTDOWN: 1, PLAYING: 2, ROUND_OVER: 3, MATCH_OVER: 4, PAUSED: 5 },
 
   decodeInput(dv) {
-    if (dv.byteLength < RR.PROTO.INPUT_LEN) return null;
+    if (dv.byteLength < RR.PROTO.INPUT_LEN || dv.getUint8(0) !== RR.PROTO.VERSION) return null;
     const flags = dv.getUint8(6);
     return {
       version: dv.getUint8(0),
@@ -48,6 +54,25 @@ RR.PROTO = {
       mineCount: dv.getUint8(8),
       pauseCount: dv.getUint8(9),
     };
+  },
+
+  decodeProfile(dv) {
+    if (dv.byteLength < 3 || dv.getUint8(0) !== RR.PROTO.PROFILE) return null;
+    const len = Math.min(dv.getUint8(2), dv.byteLength - 3);
+    const bytes = new Uint8Array(dv.buffer, dv.byteOffset + 3, len);
+    return { color: dv.getUint8(1), name: new TextDecoder().decode(bytes) };
+  },
+
+  // UTF-8 bytes of `text`, cut at a character boundary to fit `max` bytes.
+  nameBytes(text, max) {
+    const enc = new TextEncoder();
+    let out = enc.encode(text);
+    let chars = Array.from(text);
+    while (out.length > max && chars.length) {
+      chars = chars.slice(0, -1);
+      out = enc.encode(chars.join(''));
+    }
+    return out;
   },
 
   // Difference between two wrapping uint8 counters.

@@ -28,6 +28,8 @@ The phone's Bluetooth name goes in the scan response.
 | 8 | uint8 | mine counter |
 | 9 | uint8 | pause counter |
 
+The game ignores any input packet whose first byte isn't `1`.
+
 Button presses are **counters**, not momentary flags.
 The game fires once per increment, so a press can't get lost between packets.
 The phone sends a packet whenever the controls change, and re-sends the current state every 200 ms as a keep-alive.
@@ -40,10 +42,27 @@ It waits for each notification to be acknowledged before sending the next one, a
 | `1` | Assign | `playerIndex, r, g, b`: which player the phone controls and that tank's colour |
 | `2` | Rumble | `duration / 10 ms, amplitude 1…255` |
 | `3` | Status | `state, myWins, theirWins, winsNeeded, shellsLeft, minesLeft, ready, shellsMax` |
+| `5` | Lobby | `myColorIndex, otherColorIndex, nameLength, …name` (UTF-8, at most 16 bytes): what the phone's name/colour editor shows |
 
 `state` values: `0` lobby, `1` round countdown, `2` playing, `3` round over, `4` match over, `5` paused.
 
-The game sends a Status only when something in it changes.
+The game sends a Status or Lobby message only when something in it changes.
+Colour indexes refer to `PLAYER_COLORS` in `game/js/config.js` (the Android app keeps the same list in `Protocol.PALETTE`).
+
+## Profile packet: phone → game
+
+In the lobby, a player can change their name and colour from the phone.
+The phone sends this on the input characteristic (or the Wi-Fi socket) in place of an input packet:
+
+| Byte | Meaning |
+| --- | --- |
+| 0 | `0x50` (`P`) |
+| 1 | colour index, or `255` to keep the current one |
+| 2 | name length |
+| 3… | name, UTF-8, at most 17 bytes |
+
+Every message fits in 20 bytes, the smallest Bluetooth LE packet, so nothing depends on a larger MTU.
+The game ignores profile packets outside the lobby, and colour requests that clash with the other player.
 
 ## Wi-Fi transport
 

@@ -109,7 +109,8 @@ Both look and work the same.
 | **Right half**: drag | Aim the turret. A dotted guide appears on the TV. |
 | **Right half**: let go | Fire. Slide back to the centre before letting go to cancel. |
 | **Right half**: quick tap | Fire wherever the turret already points. |
-| **MINE** button | Drop a mine. |
+| **MINE** button (top middle) | Drop a mine. |
+| Your name pill (top left, in the lobby) | Change your name and tank colour. |
 | **Pause** button (top bar) | Pause or resume. |
 | Settings button (top bar) | Turn fire-on-release, vibration or left-handed layout on or off. |
 
@@ -139,6 +140,32 @@ To use a gamepad, click **Gamepad** on a player card and press any button on the
 - **Crates** block tanks and shells, but a mine blast clears them.
 - **Pits and ponds** stop tanks, but shells fly straight over them.
 - First to 3, 5 or 7 round wins takes the match.
+
+### Arena effects
+
+Most themes have their own twist, shown under the arena preview in the lobby and in the round banner.
+Turn **Arena effects** off in the lobby for plain rules.
+
+| Theme | Effect |
+| --- | --- |
+| Frost | **Slippery ice**: tanks slide and take a moment to stop or turn. |
+| Space | **Black holes** bend shells that pass nearby and swallow any that fly into them. |
+| Volcano | **Eruptions**: every few seconds the lava lobs fireballs; get out of the red warning circles. |
+| Beach | **Tide**: every so often the tide comes in and halves your speed near the water. |
+| Playroom | **Bouncy blocks**: shells bounce one extra time. |
+| Sandbox | **Sandstorms** blow through and hide everything except the area around each tank. |
+| Garden | **Regrowth**: blasted planters grow back after a while. |
+| Workshop, Blueprint, Kitchen | Classic rules. |
+
+Random events (eruptions) always happen in mirrored pairs, so neither side gets an advantage.
+
+### Trick shots and instant replay
+
+Special kills get a callout: **BANK SHOT!** (one bounce), **TRICK SHOT!** (two), **INCREDIBLE!** (three or more), **GRAVITY ASSIST!** (bent by a black hole), plus **KABOOM!**, **ROASTED!**, **OWN GOAL!**, and **INTERCEPTED!** when two players' shells collide.
+Trick shots are counted on the results screen.
+
+After each kill, the last few seconds replay in slow motion, zoomed in on the action.
+Press fire on any controller (or Space / Enter / Esc) to skip it, or turn **Instant replay** off in the lobby.
 
 ### Tuning
 

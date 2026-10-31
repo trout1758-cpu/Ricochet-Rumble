@@ -8,7 +8,7 @@ const path = require('path');
 const vm = require('vm');
 
 const root = path.join(__dirname, '..', 'js');
-const sandbox = { console, Math, performance: { now: () => Date.now() } };
+const sandbox = { console, Math, TextEncoder, TextDecoder, performance: { now: () => Date.now() } };
 sandbox.window = sandbox;
 vm.createContext(sandbox);
 for (const f of ['config.js', 'util.js', 'protocol.js', 'arenas.js', 'world.js']) {
@@ -265,6 +265,104 @@ test('max two mines per tank', () => {
   assert(w.mines.filter((m) => m.owner === 0).length === 2, 'mine cap');
 });
 
+console.log('Theme mechanics');
+const themed = (theme, rows) => ({
+  name: 'T-' + theme, theme,
+  half: EMPTY.half.map((row, r) => rows[r] || row),
+});
+
+test('frost: tanks keep sliding after the stick is released', () => {
+  const slideAfterRelease = (theme, effects) => {
+    const w = makeWorld(themed(theme, {}), { effects });
+    w.tanks[0].x = 5.5;
+    step(w, 1, [Object.assign(idle(), { moveX: 1 }), idle()]);
+    const x = w.tanks[0].x;
+    step(w, 0.6);
+    return w.tanks[0].x - x;
+  };
+  assert(slideAfterRelease('frost', true) > 0.3, 'should slide on ice');
+  assert(slideAfterRelease('workshop', true) < 1e-6, 'should stop dead normally');
+  assert(slideAfterRelease('frost', false) < 1e-6, 'arena effects off = no ice');
+});
+
+test('space: black holes bend shells and swallow them', () => {
+  const def = themed('space', { 3: '.....o.....' });
+  const w = makeWorld(def);
+  assert(w.mechKey === 'space' && w.holes.length === 2, 'holes found');
+  w.tanks[1].x = 20.5; w.tanks[1].y = 12.5;
+  const t = w.tanks[0];
+  t.x = 1.5; t.y = 4.6;
+  step(w, 0.02, aimAndFire(w, 0, 0));
+  const b = w.bullets[0];
+  step(w, 0.8);
+  assert(b.dead || b.vy < -0.5, 'shell should curve up toward the hole: vy=' + b.vy);
+  // aimed straight at the hole: swallowed
+  const w2 = makeWorld(def);
+  w2.tanks[1].x = 20.5; w2.tanks[1].y = 12.5;
+  w2.tanks[0].x = 2.5; w2.tanks[0].y = 3.5;
+  const ev = step(w2, 1.5, aimAndFire(w2, 0, 0));
+  assert(ev.some((e) => e.type === 'swallow'), 'swallowed');
+});
+
+test('volcano: an eruption destroys a tank in the target circle, mirrored for fairness', () => {
+  const w = makeWorld(themed('volcano', { 1: '..o........' }));
+  assert(w.mechKey === 'volcano', 'lava found');
+  step(w, 0.05);
+  w.spawnEruption({ x: w.tanks[0].x, y: w.tanks[0].y });
+  assert(w.eruptions.length === 2, 'mirrored pair');
+  assert(Math.abs(w.eruptions[1].tx - (C.COLS - w.tanks[0].x)) < 1e-9, 'mirror target');
+  const ev = step(w, C.ERUPT_FUSE + 0.1);
+  const d = ev.find((e) => e.type === 'tankDestroyed');
+  assert(d && d.player === 0 && d.cause === 'eruption' && d.by === null, 'tank 0 roasted');
+  assert(!w.tanks[1].alive, 'tank 1 on the mirrored spot too');
+});
+
+test('beach: high tide slows tanks in the shallows', () => {
+  const def = themed('beach', { 5: '...o.......', 6: '.1.o.......', 7: '...o.......' });
+  const dist = (effects) => {
+    const w = makeWorld(def, { effects });
+    w.mechClock = 17; // high tide
+    w.tanks[0].x = 2.5; w.tanks[0].y = 6.5; w.tanks[0].angle = Math.PI / 2;
+    const y = w.tanks[0].y;
+    step(w, 0.25, [Object.assign(idle(), { moveY: 1 }), idle()]);
+    return w.tanks[0].y - y;
+  };
+  const slow = dist(true), normal = dist(false);
+  assert(slow < normal * 0.6 && slow > 0, `slow=${slow.toFixed(3)} normal=${normal.toFixed(3)}`);
+});
+
+test('playroom: shells bounce one extra time', () => {
+  const w = makeWorld(themed('playroom', {}));
+  w.tanks[1].x = 20.5; w.tanks[1].y = 1.5;
+  w.tanks[0].x = 5.5; w.tanks[0].y = 6.5;
+  let ev = step(w, 0.02, aimAndFire(w, 0, -Math.PI / 2));
+  w.tanks[0].x = 2.5; w.tanks[0].y = 3.5;
+  ev = ev.concat(step(w, 8));
+  assert(ev.filter((e) => e.type === 'bounce').length === 2, 'classic 1 + 1');
+});
+
+test('garden: blasted planters grow back once the tile is clear', () => {
+  const w = makeWorld(themed('garden', { 6: '.1.x.......' }));
+  assert(w.mechKey === 'garden', 'planters found');
+  w.blast(3.5, 6.5, C.MINE_BLAST_RADIUS, null, 'mine');
+  assert(w.tileAt(3, 6) === T.FLOOR, 'destroyed');
+  w.tanks[0].alive = true; w.tanks[0].x = 3.5; w.tanks[0].y = 6.5; // parked on it
+  step(w, C.REGROW_TIME + 0.5);
+  assert(w.tileAt(3, 6) === T.FLOOR, 'does not grow under a tank');
+  w.tanks[0].x = 1.5; w.tanks[0].y = 1.5;
+  const ev = step(w, 0.2);
+  assert(w.tileAt(3, 6) === T.CRATE && ev.some((e) => e.type === 'crateRegrow'), 'grew back');
+});
+
+test('kill events carry the shell bounce count (for trick-shot callouts)', () => {
+  const w = makeWorld(EMPTY);
+  const t1 = w.tanks[1];
+  w.bullets.push({ id: 77, owner: 0, x: t1.x - 1, y: t1.y, vx: 5.6, vy: 0, speed: 5.6, bounces: 2, maxBounces: 3, bent: 0, age: 1, dead: false });
+  const ev = step(w, 0.5);
+  const d = ev.find((e) => e.type === 'tankDestroyed');
+  assert(d && d.bounces === 2 && d.by === 0, 'bounces=' + (d && d.bounces));
+});
+
 console.log('Protocol');
 test('decodes an input packet and wraps counters', () => {
   const P = RR.PROTO;
@@ -279,6 +377,22 @@ test('decodes an input packet and wraps counters', () => {
   assert(P.counterDelta(254, 2) === 4, 'wrap');
   assert(P.counterDelta(5, 5) === 0, 'no change');
   assert(P.decodeInput(new DataView(new ArrayBuffer(4))) === null, 'short packet rejected');
+});
+
+test('profile packets: decoded, and never mistaken for stick input', () => {
+  const P = RR.PROTO;
+  const nb = P.nameBytes('Zoë the Great', 17);
+  const bytes = new Uint8Array(3 + nb.length);
+  bytes.set([P.PROFILE, 3, nb.length]);
+  bytes.set(nb, 3);
+  const dv = new DataView(bytes.buffer);
+  const prof = P.decodeProfile(dv);
+  assert(prof && prof.color === 3 && prof.name === 'Zoë the Great', JSON.stringify(prof));
+  const long = new Uint8Array(20).fill(0x41);
+  long[0] = P.PROFILE;
+  assert(P.decodeInput(new DataView(long.buffer)) === null, 'profile must not decode as input');
+  assert(P.nameBytes('ééééééééé', 16).length === 16, 'cut on a character boundary');
+  assert(new TextDecoder().decode(P.nameBytes('éééééééééé', 15)) === 'ééééééé', 'no half characters');
 });
 
 console.log(`\n${passes} passed, ${failures} failed`);

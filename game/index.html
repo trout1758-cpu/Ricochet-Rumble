@@ -34,6 +34,9 @@
     </div>
   </div>
 
+  <div id="replay-tag" class="hidden"><b>▶ REPLAY</b> <span>press fire to skip</span></div>
+  <div id="letterbox-bars" aria-hidden="true"><i></i><i></i></div>
+
   <div id="banner" class="hidden">
     <div class="banner-main"></div>
     <div class="banner-sub"></div>
@@ -99,6 +102,7 @@
           <select id="set-arena"></select>
         </div>
         <canvas id="arena-preview" width="440" height="268"></canvas>
+        <p class="arena-effect" id="arena-effect"></p>
         <div class="setting">
           <label>Ammo</label>
           <div class="seg" id="set-ammo"></div>
@@ -106,6 +110,14 @@
         <div class="setting">
           <label>Mines</label>
           <div class="seg" id="set-mines"><button data-v="on">On</button><button data-v="off">Off</button></div>
+        </div>
+        <div class="setting">
+          <label>Arena effects</label>
+          <div class="seg" id="set-effects"><button data-v="on">On</button><button data-v="off">Off</button></div>
+        </div>
+        <div class="setting">
+          <label>Instant replay</label>
+          <div class="seg" id="set-replay"><button data-v="on">On</button><button data-v="off">Off</button></div>
         </div>
         <div class="setting">
           <label>Music</label>
@@ -192,6 +204,7 @@
             <li>Shells cancel each other out when they collide.</li>
             <li>Mines blink, then blow up. They go off early if the enemy drives close or someone shoots them. Blasts clear crates.</li>
             <li>Pits stop tanks, but shells fly straight over.</li>
+            <li>Most themes add a twist: ice, black holes, eruptions, tides, bouncy blocks, sandstorms or regrowing planters (switch them off in the lobby).</li>
           </ul>
         </div>
         <div>
@@ -201,7 +214,8 @@
             <li><b>Android app (Bluetooth):</b> open Ricochet Pad, click <b>Android app</b> and pick the phone.</li>
             <li><b>Left thumb:</b> drag to drive.</li>
             <li><b>Right thumb:</b> drag to aim, let go to fire. Tap to fire where the turret points. Slide back to the middle to cancel.</li>
-            <li><b>Mine</b> and <b>Pause</b> buttons are on screen.</li>
+            <li><b>Mine</b> is the button in the top middle; <b>Pause</b> is top right.</li>
+            <li>In the lobby, tap your name on the phone to change it and your tank colour.</li>
           </ul>
           <h3>Keyboard &amp; gamepad</h3>
           <ul>
@@ -224,6 +238,7 @@
   <script src="js/arenas.js"></script>
   <script src="js/world.js"></script>
   <script src="js/render.js"></script>
+  <script src="js/replay.js"></script>
   <script src="js/audio.js"></script>
   <script src="js/input.js"></script>
   <script src="js/ble.js"></script>
