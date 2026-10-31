@@ -69,14 +69,18 @@ function aimAndFire(w, i, angle) {
 
 console.log('Arenas');
 RR.ARENA_DEFS.forEach((def) => {
-  test(`${def.name}: builds, is mirrored, spawns connected`, () => {
+  test(`${def.name}: builds, is symmetric, spawns connected`, () => {
     const a = RR.buildArena(def);
     assert(a.theme, 'unknown theme ' + def.theme);
+    const rot = def.sym === 'rotate';
     for (let r = 0; r < C.ROWS; r++) {
       for (let c = 0; c < C.COLS; c++) {
-        assert(a.grid[r * C.COLS + c] === a.grid[r * C.COLS + (C.COLS - 1 - c)], `not mirrored at ${c},${r}`);
+        const mr = rot ? C.ROWS - 1 - r : r;
+        assert(a.grid[r * C.COLS + c] === a.grid[mr * C.COLS + (C.COLS - 1 - c)], `not symmetric at ${c},${r}`);
       }
     }
+    const names = RR.ARENA_DEFS.filter((d) => d.name === def.name);
+    assert(names.length === 1, 'duplicate arena name');
     // BFS over floor tiles — the two tanks must be able to reach each other
     // (crates count as passable because mines can clear them).
     const passable = (c, r) => {

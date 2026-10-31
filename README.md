@@ -157,23 +157,40 @@ The ammo type and mines on/off are chosen in the lobby.
 
 ### Arenas
 
-Every arena is mirrored left-to-right, so both sides are equal.
+There are 24 arenas across 10 themes.
+Every arena is symmetric, so both sides are equal.
+Most are mirrored left-to-right; the ones marked ↻ are rotated instead, so the players start in opposite corners.
 
 | Arena | Theme | Feature |
 | --- | --- | --- |
 | Opening Gambit | Workshop | A simple layout to learn on |
+| Dunes ↻ | Beach | Rock piles, driftwood and tide pools |
 | Crate Alley | Sandbox | Crate walls to blast through |
+| Kitchen Table | Kitchen | A long wall down the middle, boxes in the corners |
 | The Moat | Frost | Icy pond in the middle; shells fly over, tanks go around |
+| Lava Lake | Volcano | A ring of lava around the centre, crate walls for cover |
 | Hedge Maze | Garden | Tight corridors |
+| Starfield ↻ | Space | Scattered blocks and black holes |
 | Checkerboard | Playroom | Scattered toy blocks for bank shots |
+| Bridges | Beach | Two channels with narrow crossings |
 | Twin Forts | Blueprint | Walled bases with crate doors |
+| Three Lanes | Workshop | Long parallel lanes and a walled middle |
 | Bank Shot | Workshop | Long walls built for ricochets |
+| Moat Castle | Frost | A castle behind a moat; mine the gate to get in |
 | Crossroads | Frost | A cross of cover in the middle |
+| Pinball | Playroom | Dozens of blocks; shots bounce everywhere |
 | Lily Pads | Garden | Ponds and planters |
+| Lava River ↻ | Volcano | Two diagonal lava rivers |
 | Toy Box | Playroom | Crates and blocks everywhere |
+| Gauntlet | Space | Staggered pillars to dodge between |
+| Bunkers | Sandbox | Crate bunkers around each spawn |
+| Checkmate ↻ | Kitchen | A checkerboard of blocks and boxes |
+| Spiral ↻ | Blueprint | Two interlocking spirals |
+| Snowball Fort | Frost | Snow walls and ice blocks |
 
-Choose **Rotation** to play them in order, **Random**, or a single arena.
-To make your own, add an entry to [`game/js/arenas.js`](game/js/arenas.js): you draw the left half and it's mirrored automatically.
+Choose **Rotation** to play them in this order, **Random**, or a single arena.
+To make your own, add an entry to [`game/js/arenas.js`](game/js/arenas.js).
+You draw the left half; the right half is mirrored automatically, or rotated if you add `sym: 'rotate'`.
 
 ---
 
