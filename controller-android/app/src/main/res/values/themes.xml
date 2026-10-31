@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="pad_background">#1C1A26</color>
+    <color name="launcher_background">#FFCD45</color>
+
+    <style name="Theme.RicochetPad" parent="android:Theme.Material.NoActionBar.Fullscreen">
+        <item name="android:windowBackground">@color/pad_background</item>
+        <item name="android:statusBarColor">@color/pad_background</item>
+        <item name="android:navigationBarColor">@color/pad_background</item>
+        <item name="android:colorAccent">#FFCD45</item>
+    </style>
+</resources>
