@@ -63,10 +63,20 @@
         </div>
         <div class="colors" role="radiogroup" aria-label="Tank colour"></div>
         <div class="tank-preview"><canvas width="220" height="120"></canvas></div>
+        <div class="qr-panel hidden">
+          <div class="qr-title">Scan with your phone’s camera</div>
+          <canvas class="qr" width="168" height="168"></canvas>
+          <div class="qr-url"></div>
+          <div class="qr-actions">
+            <button class="btn small ghost qr-other hidden">Try another address</button>
+            <button class="btn small ghost qr-cancel">Cancel</button>
+          </div>
+        </div>
         <div class="ctrl">
           <div class="ctrl-status"><span class="ctrl-icon"></span><div><div class="ctrl-name">No controller</div><div class="ctrl-detail">Pick one below</div></div></div>
           <div class="ctrl-buttons">
-            <button class="btn small" data-src="phone">Phone</button>
+            <button class="btn small wide" data-src="wifi">Phone · scan QR code</button>
+            <button class="btn small" data-src="phone">Android app</button>
             <button class="btn small" data-src="gamepad">Gamepad</button>
             <button class="btn small" data-src="kbm">Keys + mouse</button>
             <button class="btn small" data-src="arrows">Arrow keys</button>
@@ -112,10 +122,20 @@
         </div>
         <div class="colors" role="radiogroup" aria-label="Tank colour"></div>
         <div class="tank-preview"><canvas width="220" height="120"></canvas></div>
+        <div class="qr-panel hidden">
+          <div class="qr-title">Scan with your phone’s camera</div>
+          <canvas class="qr" width="168" height="168"></canvas>
+          <div class="qr-url"></div>
+          <div class="qr-actions">
+            <button class="btn small ghost qr-other hidden">Try another address</button>
+            <button class="btn small ghost qr-cancel">Cancel</button>
+          </div>
+        </div>
         <div class="ctrl">
           <div class="ctrl-status"><span class="ctrl-icon"></span><div><div class="ctrl-name">No controller</div><div class="ctrl-detail">Pick one below</div></div></div>
           <div class="ctrl-buttons">
-            <button class="btn small" data-src="phone">Phone</button>
+            <button class="btn small wide" data-src="wifi">Phone · scan QR code</button>
+            <button class="btn small" data-src="phone">Android app</button>
             <button class="btn small" data-src="gamepad">Gamepad</button>
             <button class="btn small" data-src="kbm">Keys + mouse</button>
             <button class="btn small" data-src="arrows">Arrow keys</button>
@@ -177,6 +197,8 @@
         <div>
           <h3>Phone controller</h3>
           <ul>
+            <li><b>Any phone (iPhone or Android):</b> click <b>Phone · scan QR code</b> on a player card and scan it with the phone's camera. The phone must be on the same Wi-Fi as this computer.</li>
+            <li><b>Android app (Bluetooth):</b> open Ricochet Pad, click <b>Android app</b> and pick the phone.</li>
             <li><b>Left thumb:</b> drag to drive.</li>
             <li><b>Right thumb:</b> drag to aim, let go to fire. Tap to fire where the turret points. Slide back to the middle to cancel.</li>
             <li><b>Mine</b> and <b>Pause</b> buttons are on screen.</li>
@@ -205,6 +227,8 @@
   <script src="js/audio.js"></script>
   <script src="js/input.js"></script>
   <script src="js/ble.js"></script>
+  <script src="js/vendor/qrcode.js"></script>
+  <script src="js/wifi.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>

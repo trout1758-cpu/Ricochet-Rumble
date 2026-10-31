@@ -64,6 +64,7 @@
     lastArena: -1,
     lobbyCountdown: 0,
     gamepadWait: null,
+    qrWait: null,
     matchWinner: null,
     goShown: false,
     mineBlink: new Map(),
@@ -294,7 +295,86 @@
     $('#btn-help-close').addEventListener('click', () => show('#screen-help', false));
 
     const problem = RR.BLE.problem();
-    $('#ble-note').textContent = problem ? 'Phone controllers unavailable: ' + problem : '';
+    $('#ble-note').textContent = problem ? 'Android app (Bluetooth) unavailable: ' + problem : '';
+
+    players.forEach((p, i) => {
+      const card = $(`.player-card[data-player="${i}"]`);
+      $('.qr-cancel', card).addEventListener('click', (e) => {
+        e.currentTarget.blur();
+        game.qrWait = null;
+        refreshLobby();
+      });
+      $('.qr-other', card).addEventListener('click', (e) => {
+        e.currentTarget.blur();
+        if (game.qrWait) game.qrWait.urlIndex++;
+        refreshLobby();
+      });
+    });
+    RR.Wifi.onNewPad = onWifiPad;
+    RR.Wifi.onUrls = () => { if (game.qrWait) refreshLobby(); };
+    RR.Wifi.start();
+  }
+
+  // A phone opened the Wi-Fi controller page (scanned a player's QR code, or
+  // typed the address). Give it that player's tank if we can.
+  function onWifiPad(ctl, slot) {
+    let i = slot === '0' || slot === '1' ? Number(slot) : players.findIndex((p) => !p.controller);
+    if (i < 0 && game.qrWait) i = game.qrWait.player;
+    const current = i >= 0 ? players[i].controller : null;
+    const busy = game.state !== 'lobby' && current && current.connected;
+    const qrForThis = game.qrWait && game.qrWait.player === i;
+    if (i < 0 || busy || (game.state === 'lobby' && slot === '' && current && !qrForThis)) {
+      ctl.reject();
+      toast('A phone tried to join, but both players already have controllers.', '#ff5a4a');
+      return;
+    }
+    if (game.qrWait && game.qrWait.player === i) game.qrWait = null;
+    assignController(i, ctl);
+  }
+
+  function drawQr(canvas, text) {
+    const qr = qrcode(0, 'M');
+    qr.addData(text);
+    qr.make();
+    const n = qr.getModuleCount();
+    const ctx = canvas.getContext('2d');
+    const cell = Math.floor(canvas.width / (n + 4));
+    const off = Math.floor((canvas.width - cell * n) / 2);
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#2a2230';
+    for (let r = 0; r < n; r++) {
+      for (let c = 0; c < n; c++) {
+        if (qr.isDark(r, c)) ctx.fillRect(off + c * cell, off + r * cell, cell, cell);
+      }
+    }
+  }
+
+  function refreshQr(i, card) {
+    const panel = $('.qr-panel', card);
+    const waiting = !!(game.qrWait && game.qrWait.player === i);
+    panel.classList.toggle('hidden', !waiting);
+    $('.tank-preview', card).classList.toggle('hidden', waiting);
+    if (!waiting) return;
+    const urls = RR.Wifi.urls;
+    const qrCanvas = $('canvas.qr', panel);
+    const url = $('.qr-url', panel);
+    $('.qr-other', panel).classList.toggle('hidden', urls.length < 2);
+    if (!RR.Wifi.hubConnected) {
+      qrCanvas.classList.add('hidden');
+      url.textContent = 'Starting the Wi-Fi link… If this doesn’t go away, close the game and start it again with the start script.';
+    } else if (!urls.length) {
+      qrCanvas.classList.add('hidden');
+      url.textContent = 'This computer isn’t on a network yet. Connect it to Wi-Fi (or a phone hotspot), then click the button again.';
+    } else {
+      const link = `${urls[game.qrWait.urlIndex % urls.length]}?slot=${i}`;
+      qrCanvas.classList.remove('hidden');
+      if (qrCanvas.dataset.url !== link) {
+        qrCanvas.dataset.url = link;
+        drawQr(qrCanvas, link);
+      }
+      url.textContent = link.replace(/^http:\/\//, '');
+    }
   }
 
   function refreshLobby() {
@@ -326,7 +406,7 @@
       } else if (ctl) {
         icon.dataset.kind = ctl.kind;
         name.textContent = ctl.label;
-        if (ctl.kind === 'phone' && !ctl.connected) {
+        if ((ctl.kind === 'phone' || ctl.kind === 'wifi') && !ctl.connected) {
           icon.dataset.state = 'lost';
           detail.textContent = `${ctl.detail} — reconnecting…`;
         } else {
@@ -337,6 +417,7 @@
         name.textContent = 'No controller';
         detail.textContent = 'Pick one below';
       }
+      refreshQr(i, card);
       $('.ctrl-remove', card).classList.toggle('hidden', !ctl);
       const rb = $('.ready-btn', card);
       rb.disabled = !ctl;
@@ -356,7 +437,17 @@
   async function chooseController(i, src) {
     const other = players[1 - i];
     game.gamepadWait = null;
-    if (src === 'kbm' || src === 'arrows') {
+    game.qrWait = null;
+    if (src === 'wifi') {
+      if (!RR.Wifi.supported()) {
+        toast('Wi-Fi phones need the game started with the start script (start-game.bat / start-game.sh).', '#ff5a4a', 6000);
+        refreshLobby();
+        return;
+      }
+      game.qrWait = { player: i, urlIndex: 0 };
+      RR.Wifi.refreshUrls();
+      refreshLobby();
+    } else if (src === 'kbm' || src === 'arrows') {
       if (other.controller && other.controller.kind === src) removeController(1 - i, true);
       assignController(i, src === 'kbm' ? new RR.KeyboardMouseController() : new RR.KeyboardArrowsController());
     } else if (src === 'gamepad') {
@@ -390,13 +481,13 @@
     p.controller = ctl;
     p.wasConnected = true;
     p.ready = false;
-    if (ctl.kind === 'phone') {
+    if (ctl.assign) {
       ctl.onchange = () => onPhoneChange(i, ctl);
       ctl.assign(i, colorOf(i).rgb);
     }
     ctl.rumble(150, 0.7);
     audio.connect();
-    toast(`${p.name}: ${ctl.label} ready${ctl.kind === 'phone' ? ' (' + ctl.detail + ')' : ''}`, colorOf(i).body);
+    toast(`${p.name}: ${ctl.label} ready${ctl.assign ? ' (' + ctl.detail + ')' : ''}`, colorOf(i).body);
     refreshLobby();
   }
 
@@ -526,6 +617,7 @@
     if (!players.every((p) => p.controller)) return;
     audio.unlock();
     game.lobbyCountdown = 0;
+    game.qrWait = null;
     game.round = 0;
     game.lastArena = -1;
     game.matchWinner = null;
@@ -845,7 +937,7 @@
   function syncPhones() {
     players.forEach((p, i) => {
       const c = p.controller;
-      if (!c || c.kind !== 'phone' || !c.connected) return;
+      if (!c || !c.status || !c.connected) return;
       let state = P.STATE.LOBBY;
       if (game.paused) state = P.STATE.PAUSED;
       else if (game.state === 'intro') state = P.STATE.COUNTDOWN;

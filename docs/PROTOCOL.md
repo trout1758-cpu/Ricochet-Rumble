@@ -1,4 +1,4 @@
-# Controller protocol (Bluetooth LE)
+# Controller protocol
 
 The phone runs a **GATT server** (BLE peripheral) and advertises one service.
 The desktop game connects to it as a **central** using Web Bluetooth in Chrome or Edge.
@@ -44,3 +44,24 @@ It waits for each notification to be acknowledged before sending the next one, a
 `state` values: `0` lobby, `1` round countdown, `2` playing, `3` round over, `4` match over, `5` paused.
 
 The game sends a Status only when something in it changes.
+
+## Wi-Fi transport
+
+Phones without the Android app use the web controller in `game/pad/`.
+The launcher's local server (`launcher/server.py`, or `launcher/RicochetServer.cs` on Windows) serves that page to the phone and relays messages over a WebSocket at `/ws`.
+The message bytes are exactly the ones above.
+
+- The game connects with `/ws?role=game`.
+  The server sends it JSON text messages:
+  - `{"t":"hello","urls":[…]}`: this computer's controller addresses on the local network. The game requests a fresh copy with `{"t":"urls"}`.
+  - `{"t":"join","pad":n,"id":…,"slot":…,"name":…}`: a phone connected.
+  - `{"t":"leave","pad":n}`: a phone disconnected.
+- A phone connects with `/ws?role=pad&id=<random id kept for the browser tab>&slot=<0|1|empty>&name=<device>`.
+  The `slot` comes from the QR code that was scanned.
+  Reconnecting with the same `id` gives the phone back its tank.
+- Binary messages from a phone reach the game prefixed with its one-byte pad number `n`.
+  The game sends `[n, …message]`, and the server strips `n` before passing it on.
+- Two extra game → phone messages exist on Wi-Fi only:
+  - `0` is a heartbeat, sent every 250 ms. A phone that hears nothing for 2.5 s reconnects.
+  - `4, reason` removes the controller: `0` means the player removed it, `1` means both players already had controllers.
+- The game treats a Wi-Fi phone as disconnected after 1.5 s without input packets, because Wi-Fi can drop without the socket closing.

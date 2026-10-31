@@ -1,6 +1,6 @@
 # Ricochet Rumble
 
-A two-player toy-tank duel for the big screen, with **Android phones as Bluetooth controllers**.
+A two-player toy-tank duel for the big screen, with **phones as controllers**: any phone over Wi-Fi by scanning a QR code, or Android phones over Bluetooth with the Ricochet Pad app.
 
 ![Ricochet Rumble gameplay](docs/screenshot.jpg)
 
@@ -12,8 +12,9 @@ The project has two parts:
 
 | Part | What it is | Where |
 | --- | --- | --- |
-| **The game** | Runs in Chrome or Edge on your computer and connects to phones with Web Bluetooth. | [`game/`](game) |
-| **Ricochet Pad** | Android app that turns a phone into a twin-stick controller. | [`controller-android/`](controller-android) |
+| **The game** | Runs in Chrome or Edge on your computer. | [`game/`](game) |
+| **Wi-Fi controller** | A web page the computer serves to phones on the same network. Works on iPhones and Android phones with nothing to install. | [`game/pad/`](game/pad) |
+| **Ricochet Pad** | Android app that connects over Bluetooth instead, for when there's no usable Wi-Fi. | [`controller-android/`](controller-android) |
 
 Either player can also use a keyboard and mouse, the arrow keys, or a USB/Bluetooth gamepad.
 
@@ -21,13 +22,14 @@ Either player can also use a keyboard and mouse, the arrow keys, or a USB/Blueto
 
 ## What you need
 
-- **A computer with Bluetooth** running **Google Chrome or Microsoft Edge**.
-  This works on Windows 10/11, macOS and ChromeOS.
-  Linux needs one flag (see [Troubleshooting](#troubleshooting)).
-- **One or two Android phones**, Android 8.0 or newer, with the Ricochet Pad app.
-  Practically every phone from the last several years supports the Bluetooth LE peripheral mode the app needs.
+- **A computer** running **Google Chrome or Microsoft Edge** (Windows 10/11, macOS or Linux).
+- **One or two phones**, connected one of two ways:
+  - **Wi-Fi (any phone):** the phones and the computer must be on the same Wi-Fi network. It doesn't need internet access. Nothing to install.
+  - **Bluetooth (Android only):** the phone needs the Ricochet Pad app (Android 8.0 or newer), and the computer needs Bluetooth. Linux needs one browser flag (see [Troubleshooting](#troubleshooting)).
 
-## 1. Install the controller app on each phone
+## 1. (Bluetooth only) Install the Android app on each phone
+
+Skip this if everyone is joining over Wi-Fi.
 
 **Option A: download it on the phone (easiest).**
 
@@ -55,17 +57,36 @@ Allow it.
 | Windows | Double-click **`start-game.bat`**. |
 | macOS / Linux | Run **`./start-game.sh`** (needs `python3`). |
 
-Each script starts a tiny local web server and opens **http://localhost:8080** in Chrome or Edge.
+Each script starts a small local server and opens **http://localhost:8080** in Chrome or Edge.
 Keep the script's window open while you play.
+The same server hands the Wi-Fi controller to phones on your network; nothing goes over the internet.
 
-> Why not just open `index.html`? Browsers only allow Bluetooth on secure pages, and `http://localhost` counts as one but a local file doesn't.
+The first time on Windows, a firewall window asks whether to allow access.
+Click **Allow** (if there are checkboxes, tick the one for your type of network), or phones won't be able to connect.
+If the Wi-Fi server can't start for any reason, the script says so and starts in local-only mode, where the Android app, keyboards and gamepads still work.
+
+> Why not just open `index.html`? Wi-Fi phones need the local server, and browsers only allow Bluetooth on secure pages: `http://localhost` counts as one, but a local file doesn't.
 > Keyboard and gamepad play also work if you open the file directly.
 
 ## 3. Connect the phones
 
+### Over Wi-Fi (any phone)
+
+1. Make sure the phone is on the **same Wi-Fi network** as the computer.
+2. In the game, click **Play**, then **Phone · scan QR code** on a player card.
+3. Point the phone's camera at the QR code and open the link.
+   The controller opens in the phone's browser and the pill turns into **PLAYER 1** (or 2).
+4. Turn the phone sideways.
+
+On Android, the first tap makes it full screen.
+On iPhone, Safari can't hide its bars for a web page; for a full-screen controller, tap **Share → Add to Home Screen** and open it from there.
+If the phone drops off the Wi-Fi, the game pauses and the phone reconnects to the same tank by itself when the network comes back.
+
+### Over Bluetooth (Android app)
+
 1. Open **Ricochet Pad** on the phone.
    The top-left pill says **WAITING FOR GAME**, and the screen shows the name to look for (your phone's Bluetooth name).
-2. In the game, click **Play**, then click **Phone** on the Player 1 card.
+2. In the game, click **Play**, then click **Android app** on the Player 1 card.
 3. Chrome opens a Bluetooth list.
    Pick your phone and click **Pair** / **Connect**.
 4. The phone's pill turns into **PLAYER 1** in that tank's colour, and it buzzes.
@@ -78,7 +99,9 @@ Try the sticks in the lobby: the tank picture on your card follows your phone, s
 
 ## Controls
 
-### Phone (Ricochet Pad)
+### Phone (Wi-Fi controller or Ricochet Pad)
+
+Both look and work the same.
 
 | Control | Action |
 | --- | --- |
@@ -91,6 +114,7 @@ Try the sticks in the lobby: the tank picture on your card follows your phone, s
 | Settings button (top bar) | Turn fire-on-release, vibration or left-handed layout on or off. |
 
 The phone vibrates when you fire, lay a mine, get hit, score a hit, or a mine blows up nearby.
+iPhones don't let web pages vibrate, so the Wi-Fi controller on an iPhone is silent; everything else works.
 It also shows the score, your remaining shells and mines, and the game state.
 
 ### Keyboard, mouse and gamepad
@@ -155,13 +179,19 @@ To make your own, add an entry to [`game/js/arenas.js`](game/js/arenas.js): you 
 
 ## Troubleshooting
 
-**My phone isn't in Chrome's Bluetooth list.**
+**A phone can't open the QR code link, or it stays on CONNECTING….**
+- The phone must be on the same Wi-Fi network as the computer, not on mobile data.
+- On Windows, the firewall may be blocking it. If you missed the "Allow" prompt, open *Windows Security → Firewall → Allow an app through firewall* and allow **Windows PowerShell** for your network type.
+- Some networks stop devices from seeing each other: hotels, schools, cafés and many "guest" networks. There, or wherever the Wi-Fi keeps dropping out, make your own network instead. Turn on a phone's hotspot and connect the computer and the other phones to it; it doesn't need mobile data for this. A cheap travel router works too.
+- If the computer has several network connections (VPN, virtual machines), click **Try another address** under the QR code.
+
+**My Android phone isn't in Chrome's Bluetooth list.**
 - Make sure Ricochet Pad is open on the phone and says **WAITING FOR GAME**. It only advertises while it's on screen.
 - Make sure Bluetooth is on for both the phone and the computer.
 - Don't pair the phone in Windows or Android Bluetooth settings first. The game connects directly.
 - A phone can only control one player at a time. If it's already connected, it stops advertising.
 
-**The lobby says "Phone controllers unavailable".**
+**The lobby says "Android app (Bluetooth) unavailable".**
 The page was opened as a file or in a browser without Web Bluetooth (Firefox and Safari don't have it).
 Use the start script and Chrome or Edge.
 
@@ -171,6 +201,8 @@ You also need BlueZ 5.41 or newer.
 
 **A phone disconnected mid-match.**
 The game pauses and keeps trying to reconnect on its own.
+Wi-Fi phones come back to the same tank automatically.
+For the Android app:
 If you closed and reopened the app, Android may have switched to a new Bluetooth address.
 In that case, click **Re-pair … phone** on the pause screen and pick it again.
 
@@ -196,13 +228,18 @@ game/                      Desktop game (plain HTML/CSS/JS, no build step)
   js/render.js             Canvas renderer, particles, decals
   js/audio.js              Synthesised sound effects and music
   js/input.js              Keyboard, mouse and gamepad
-  js/ble.js                Phone controllers over Web Bluetooth
+  js/ble.js                Android app over Web Bluetooth
+  js/wifi.js               Phone controllers over Wi-Fi (WebSocket via the launcher)
+  js/vendor/qrcode.js      QR code generator (Kazuhiko Arase, MIT licence)
+  pad/                     Wi-Fi controller page served to phones
   js/protocol.js           Bluetooth packet format
   js/main.js               Menus, rounds, HUD, controller feedback
   tests/run.js             Headless tests for the simulation and protocol
 controller-android/        Ricochet Pad (Kotlin, no external libraries)
-docs/PROTOCOL.md           Bluetooth protocol between phone and game
-start-game.bat / .ps1 / .sh  Local launchers
+launcher/server.py         Local server for macOS / Linux (game, Wi-Fi controller, relay)
+launcher/RicochetServer.cs Same server for Windows, compiled by start-game.ps1
+docs/PROTOCOL.md           Controller protocol (Bluetooth and Wi-Fi)
+start-game.bat / .ps1 / .sh  Launchers
 ```
 
 Run the simulation tests with:
