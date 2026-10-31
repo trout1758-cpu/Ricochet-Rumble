@@ -29,48 +29,19 @@ Either player can also use a keyboard and mouse, the arrow keys, or a USB/Blueto
 
 ## 1. Install the controller app on each phone
 
-**Option A: download the APK built by GitHub Actions.**
+**Option A: download it on the phone (easiest).**
 
-- After this work is merged to `main`, the APK is published as a release named **controller-latest**.
-  On the phone, open the repository's **Releases** page, download `RicochetPad.apk`, and open it.
-  You can also run the "Android controller APK" workflow by hand from the Actions tab.
-- Before that, every push still builds the APK.
-  Open the latest run of **Actions → Android controller APK** and download the `RicochetPad-apk` artifact.
-  It's a zip; extract `RicochetPad.apk` and copy it to the phone.
-- Android will ask you to allow installing apps from your browser or file manager the first time.
+1. On the phone, open Chrome and sign in at [github.com](https://github.com). The repository is private, so the link only works when you're signed in.
+2. Open **https://github.com/trout1758-cpu/Wii-Tanks/releases/download/controller-latest/RicochetPad.apk**.
+   GitHub rebuilds this file every time the app changes, so the same link always gets the newest version.
+3. Open the downloaded file.
+   The first time, Android asks you to allow Chrome to install apps; turn that on.
+   If Play Protect warns about an unknown app, tap **More details → Install anyway**.
 
-**Option B: have every build sent to your phone with Firebase App Distribution.**
-Once this is set up, each push that changes the app emails you, and the Firebase **App Tester** app on your phone offers the update.
-The setup is a one-time job of about 10 minutes, done on a computer:
+To update later, open the same link again and install over the old version; your settings are kept.
+Every build is signed with the same development key (`controller-android/app/ricochetpad-dev.keystore`), which is what lets updates install over each other.
 
-1. In the [Firebase console](https://console.firebase.google.com/), create a project.
-   The free plan is enough, and you can skip Google Analytics.
-2. Click **Add app → Android** and enter the package name `com.ricochetrumble.controller`.
-   Register the app, then skip the `google-services.json` and SDK steps, which aren't needed.
-3. Open **App Distribution** (under *Release & Monitor*) and click **Get started**.
-4. Copy the **App ID** from **Project settings → General → Your apps**.
-   It looks like `1:123456789:android:abc123…`.
-5. Create a key that lets GitHub upload builds:
-   - Go to **Project settings → Service accounts** and click the link to manage service account permissions in Google Cloud.
-   - **Create service account**, give it the role **Firebase App Distribution Admin**, and finish.
-   - Open the new account, go to **Keys → Add key → JSON**, and save the downloaded file.
-6. In this GitHub repository, go to **Settings → Secrets and variables → Actions** and add three repository secrets:
-
-   | Secret | Value |
-   | --- | --- |
-   | `FIREBASE_APP_ID` | the App ID from step 4 |
-   | `FIREBASE_SERVICE_ACCOUNT` | the whole contents of the JSON key file from step 5 |
-   | `FIREBASE_TESTERS` | the email address(es) to send builds to, comma-separated |
-
-7. Open **Actions → Android controller APK**, pick the latest run, and click **Re-run all jobs**.
-   On your phone, open the invite email from Firebase, accept it, and follow the prompts to install **App Tester** and then Ricochet Pad.
-
-Until the secrets exist, the Firebase step is skipped and the build still succeeds.
-
-Every build is signed with the same development key (`controller-android/app/ricochetpad-dev.keystore`), so new versions install over old ones.
-If you installed a build from before that key was added, uninstall it once first.
-
-**Option C: build it yourself.**
+**Option B: build it yourself.**
 Open the `controller-android` folder in Android Studio and press **Run** with your phone plugged in (USB debugging on).
 From the command line, run `./gradlew assembleRelease`; the APK lands in `app/build/outputs/apk/release/`.
 
