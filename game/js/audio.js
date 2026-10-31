@@ -28,7 +28,7 @@ window.RR = window.RR || {};
         this.music = this.ctx.createGain();
         this.music.gain.value = this.musicOn ? this.musicVolume : 0;
         this.music.connect(this.master);
-        const len = this.ctx.sampleRate;
+        const len = this.ctx.sampleRate * 2; // > longest burst + random start offset
         this.noise = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
         const d = this.noise.getChannelData(0);
         for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
