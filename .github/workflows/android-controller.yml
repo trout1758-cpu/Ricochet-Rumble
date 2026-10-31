@@ -19,6 +19,12 @@ jobs:
     defaults:
       run:
         working-directory: controller-android
+    env:
+      # Optional: set these repository secrets to push every build to your
+      # phone with Firebase App Distribution (see README).
+      FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
+      FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+      FIREBASE_TESTERS: ${{ secrets.FIREBASE_TESTERS }}
     steps:
       - uses: actions/checkout@v4
 
@@ -39,6 +45,18 @@ jobs:
         with:
           name: RicochetPad-apk
           path: controller-android/RicochetPad.apk
+
+      - name: Send to testers (Firebase App Distribution)
+        if: env.FIREBASE_APP_ID != '' && env.FIREBASE_SERVICE_ACCOUNT != ''
+        run: |
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/firebase-sa.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/firebase-sa.json"
+          notes="$(git log -1 --pretty=%s) (${GITHUB_REF_NAME}@${GITHUB_SHA::7})"
+          npx --yes firebase-tools@13 appdistribution:distribute RicochetPad.apk \
+            --app "$FIREBASE_APP_ID" \
+            --testers "$FIREBASE_TESTERS" \
+            --release-notes "$notes"
+          rm -f "$RUNNER_TEMP/firebase-sa.json"
 
       # On main (or when run by hand) publish the APK as a downloadable
       # release, so it can be grabbed straight from the phone's browser.

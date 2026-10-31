@@ -9,19 +9,36 @@ android {
     namespace = "com.ricochetrumble.controller"
     compileSdk = 35
 
+    // CI builds number themselves so each upload is a newer version.
+    val buildNumber = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
+
     defaultConfig {
         applicationId = "com.ricochetrumble.controller"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = buildNumber
+        versionName = "1.0.$buildNumber"
+    }
+
+    // One fixed key for every build (local or CI), so a newer APK installs
+    // over the old one instead of Android refusing a signature mismatch.
+    // It only signs this hobby controller app; it is not a Play Store key.
+    signingConfigs {
+        create("dev") {
+            storeFile = file("ricochetpad-dev.keystore")
+            storePassword = "ricochetpad"
+            keyAlias = "ricochetpad"
+            keyPassword = "ricochetpad"
+        }
     }
 
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("dev")
+        }
         release {
             isMinifyEnabled = false
-            // Signed with the debug key so the APK can be sideloaded as-is.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("dev")
         }
     }
 
