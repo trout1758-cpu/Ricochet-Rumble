@@ -28,7 +28,8 @@ window.RR = window.RR || {};
       }
       this.frames.push({
         t: w.time,
-        tanks: w.tanks.map((k) => [k.x, k.y, k.angle, k.turret, k.alive, k.treadPhase, k.recoil]),
+        tanks: w.tanks.map((k) => [k.x, k.y, k.angle, k.turret, k.alive, k.treadPhase, k.recoil, k.shield]),
+        powerups: (w.powerups || []).map((p) => Object.assign({}, p)),
         bullets: w.bullets.map((b) => [b.id, b.owner, b.x, b.y, b.vx, b.vy]),
         mines: w.mines.map((m) => [m.id, m.owner, m.x, m.y, m.age, m.fuse, m.armed, m.triggered]),
         grid: this.lastGrid,
@@ -58,8 +59,8 @@ window.RR = window.RR || {};
         arena: w.arena, theme: w.theme, ammo: w.ammo, minesEnabled: w.minesEnabled,
         mechKey: w.mechKey, mechanic: w.mechanic, holes: w.holes, shallow: w.shallow,
         grid: frames[0].grid,
-        tanks: w.tanks.map((k) => ({ index: k.index, color: k.color })),
-        bullets: [], mines: [], eruptions: [], regrow: [], tide: 0, storm: 0,
+        tanks: w.tanks.map((k) => ({ index: k.index, color: k.color, team: k.team, label: k.label })),
+        bullets: [], mines: [], eruptions: [], regrow: [], tide: 0, storm: 0, powerups: [],
       };
       this.play = { frames, i: 0, t: frames[0].t, end: frames[frames.length - 1].t, proxy };
       this.apply(frames[0]);
@@ -69,8 +70,9 @@ window.RR = window.RR || {};
     apply(f) {
       const p = this.play.proxy;
       f.tanks.forEach((k, i) => {
-        Object.assign(p.tanks[i], { x: k[0], y: k[1], angle: k[2], turret: k[3], alive: k[4], treadPhase: k[5], recoil: k[6] });
+        Object.assign(p.tanks[i], { x: k[0], y: k[1], angle: k[2], turret: k[3], alive: k[4], treadPhase: k[5], recoil: k[6], shield: k[7] });
       });
+      p.powerups = f.powerups || [];
       p.bullets = f.bullets.map((b) => ({ id: b[0], owner: b[1], x: b[2], y: b[3], vx: b[4], vy: b[5] }));
       p.mines = f.mines.map((m) => ({ id: m[0], owner: m[1], x: m[2], y: m[3], age: m[4], fuse: m[5], armed: m[6], triggered: m[7] }));
       p.grid = f.grid;

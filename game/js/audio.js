@@ -105,6 +105,15 @@ window.RR = window.RR || {};
       this.burst({ dur: 0.18, vol: 0.25, freq: 3000, to: 800, q: 1.2 });
     }
 
+    powerup() {
+      [660, 880, 1320].forEach((f, i) => this.tone({ freq: f, type: 'triangle', dur: 0.1, vol: 0.12, at: i * 0.055 }));
+    }
+
+    shieldPop() {
+      this.tone({ freq: 1800, to: 400, type: 'sine', dur: 0.25, vol: 0.18 });
+      this.burst({ dur: 0.2, vol: 0.25, freq: 4000, to: 1200, q: 1.5 });
+    }
+
     dry() {
       this.tone({ freq: 300, type: 'square', dur: 0.03, vol: 0.05 });
     }

@@ -22,9 +22,21 @@ window.RR = window.RR || {};
   }
 
   class Tank {
-    constructor(index, spawn, color) {
+    constructor(world, index, spawn, color, opts = {}) {
+      this.w = world;
       this.index = index;
       this.color = color;
+      this.team = opts.team != null ? opts.team : index;
+      this.label = opts.label || 'P' + (index + 1);
+      this.ai = opts.ai || null;          // CPU settings (C.ENEMIES entry) or null
+      this.ammo = opts.ammo || null;      // own ammo, or null for the match's
+      this.speedMul = opts.speedMul != null ? opts.speedMul : 1;
+      this.turnRate = opts.turnRate || C.TURRET_TURN_RATE;
+      this.mineMax = opts.mineMax != null ? opts.mineMax : C.MINE_MAX;
+      this.absent = !!opts.absent;
+      // power-ups
+      this.shield = false;
+      this.boost = 0; this.spread = 0; this.bouncy = 0; this.rapid = 0;
       this.x = spawn.x;
       this.y = spawn.y;
       this.vx = 0;
@@ -41,11 +53,19 @@ window.RR = window.RR || {};
       this.recoil = 0;
       this.treadPhase = 0;
       this.markDist = 0;
+      if (this.absent) this.alive = false;
     }
+
+    get gun() { return this.ammo || this.w.ammo; }
+    shotBounces() { return this.gun.bounces + (this.bouncy > 0 ? 2 : 0) + (this.w.mechKey === 'playroom' ? 1 : 0); }
+    maxShells() { return this.gun.max + (this.rapid > 0 ? 3 : 0); }
   }
 
   class World {
-    // opts: { ammo, minesEnabled, effects, colors: [color, color] }
+    // opts: { ammo, minesEnabled, effects, colors: [color, color],
+    //   powerups, campaign, enemies: [{ type, x, y, angle }],
+    //   absent: [player index...], cpu: { playerIndex: enemyType },
+    //   spawns: [player spawn overrides] }
     constructor(arenaDef, opts) {
       const arena = RR.buildArena(arenaDef);
       this.arena = arena;
@@ -54,7 +74,26 @@ window.RR = window.RR || {};
       this.gridVersion = 0;
       this.ammo = opts.ammo || C.AMMO.classic;
       this.minesEnabled = opts.minesEnabled !== false;
-      this.tanks = arena.spawns.map((s, i) => new Tank(i, s, opts.colors[i]));
+      this.campaign = !!opts.campaign;
+      const absent = new Set(opts.absent || []);
+      const cpu = opts.cpu || {};
+      this.tanks = arena.spawns.map((s, i) => {
+        const sp = (opts.spawns && opts.spawns[i]) || s;
+        const ai = cpu[i] ? Object.assign({}, C.ENEMIES[cpu[i]]) : null;
+        return new Tank(this, i, sp, opts.colors[i], {
+          team: this.campaign ? 0 : i, absent: absent.has(i), ai,
+          speedMul: ai ? ai.speed : 1, turnRate: ai ? ai.turn : null, label: ai ? 'CPU' : null,
+        });
+      });
+      for (const e of opts.enemies || []) {
+        const def = C.ENEMIES[e.type];
+        this.tanks.push(new Tank(this, this.tanks.length, e, def.color, {
+          team: 1, ai: def, ammo: def.ammo, speedMul: def.speed, turnRate: def.turn, mineMax: def.mines, label: def.name,
+        }));
+      }
+      this.powerupsOn = !!opts.powerups;
+      this.powerups = [];
+      this.powerupTimer = C.POWERUP_FIRST;
       this.bullets = [];
       this.mines = [];
       this.events = [];
@@ -282,23 +321,28 @@ window.RR = window.RR || {};
     // ---- queries used by the HUD ----------------------------------------------
     shellsInFlight(i) {
       let n = 0;
-      for (const b of this.bullets) if (b.owner === i) n++;
+      for (const b of this.bullets) if (b.owner === i && !b.extra) n++;
       return n;
     }
 
     shellsLeft(i) {
-      return this.ammo.max - this.shellsInFlight(i);
+      return Math.max(0, this.tanks[i].maxShells() - this.shellsInFlight(i));
     }
 
     minesLeft(i) {
       if (!this.minesEnabled) return 0;
       let n = 0;
       for (const m of this.mines) if (m.owner === i) n++;
-      return C.MINE_MAX - n;
+      return this.tanks[i].mineMax - n;
     }
 
     aliveTanks() {
       return this.tanks.filter((t) => t.alive);
+    }
+
+    // Teams with a tank still rolling.
+    aliveTeams() {
+      return new Set(this.aliveTanks().map((t) => t.team));
     }
 
     emit(ev) {
@@ -310,10 +354,13 @@ window.RR = window.RR || {};
     update(dt, inputs) {
       this.time += dt;
       for (const t of this.tanks) {
-        if (t.alive) this.updateTank(t, inputs[t.index] || NO_INPUT, dt);
+        if (!t.alive) continue;
+        const inp = t.ai ? RR.AI.think(this, t, dt) : inputs[t.index] || NO_INPUT;
+        this.updateTank(t, inp, dt);
       }
       this.collideTanks();
       if (!this.frozen && this.mechKey) this.updateMechanic(dt);
+      if (!this.frozen && this.powerupsOn) this.updatePowerups(dt);
       this.updateBullets(dt);
       this.updateMines(dt);
     }
@@ -334,7 +381,13 @@ window.RR = window.RR || {};
       } else if (inp.aimMode === 'rotate') {
         t.turretTarget = U.wrapAngle(t.turret + inp.rotate * C.TURRET_TURN_RATE * 0.3 * dt);
       }
-      t.turret = U.approachAngle(t.turret, t.turretTarget, C.TURRET_TURN_RATE * dt);
+      t.turret = U.approachAngle(t.turret, t.turretTarget, t.turnRate * dt);
+      if (!this.frozen) {
+        t.boost = Math.max(0, t.boost - dt);
+        t.spread = Math.max(0, t.spread - dt);
+        t.bouncy = Math.max(0, t.bouncy - dt);
+        t.rapid = Math.max(0, t.rapid - dt);
+      }
 
       if (this.frozen) {
         t.speed = 0;
@@ -366,7 +419,7 @@ window.RR = window.RR || {};
         const rem = Math.abs(diff - turn);
         const align = rem < 0.3 ? 1 : rem > 1.15 ? 0 : 1 - (rem - 0.3) / 0.85;
         const slow = this.inShallows(t) ? C.TIDE_SLOW : 1;
-        t.speed = C.TANK_SPEED * m * align * t.driveDir * slow;
+        t.speed = C.TANK_SPEED * m * align * t.driveDir * slow * t.speedMul * (t.boost > 0 ? C.TURBO : 1);
         wantVx = Math.cos(t.angle) * t.speed;
         wantVy = Math.sin(t.angle) * t.speed;
       }
@@ -409,28 +462,33 @@ window.RR = window.RR || {};
     }
 
     collideTanks() {
-      const [a, b] = this.tanks;
-      if (!a || !b || !a.alive || !b.alive) return;
-      const dx = b.x - a.x, dy = b.y - a.y;
-      const d = Math.hypot(dx, dy);
+      const ts = this.tanks;
       const min = C.TANK_RADIUS * 2;
-      if (d >= min || d < 1e-6) return;
-      const push = (min - d) / 2 / d;
-      a.x -= dx * push; a.y -= dy * push;
-      b.x += dx * push; b.y += dy * push;
-      this.resolveTank(a);
-      this.resolveTank(b);
+      for (let i = 0; i < ts.length; i++) {
+        for (let j = i + 1; j < ts.length; j++) {
+          const a = ts[i], b = ts[j];
+          if (!a.alive || !b.alive) continue;
+          const dx = b.x - a.x, dy = b.y - a.y;
+          const d = Math.hypot(dx, dy);
+          if (d >= min || d < 1e-6) continue;
+          const push = (min - d) / 2 / d;
+          a.x -= dx * push; a.y -= dy * push;
+          b.x += dx * push; b.y += dy * push;
+          this.resolveTank(a);
+          this.resolveTank(b);
+        }
+      }
     }
 
     tryFire(t, inp) {
       if (t.cooldown > 0) return;
-      if (this.shellsInFlight(t.index) >= this.ammo.max) {
+      if (this.shellsInFlight(t.index) >= t.maxShells()) {
         this.emit({ type: 'dry', player: t.index });
         t.cooldown = C.FIRE_COOLDOWN;
         return;
       }
       if (inp.snapOnFire) t.turret = t.turretTarget;
-      t.cooldown = C.FIRE_COOLDOWN;
+      t.cooldown = C.FIRE_COOLDOWN * (t.rapid > 0 ? 0.6 : 1);
       t.recoil = 1;
       const cx = Math.cos(t.turret), sy = Math.sin(t.turret);
       // Muzzle jammed against a wall? The shell fizzles instead of spawning
@@ -444,11 +502,17 @@ window.RR = window.RR || {};
       }
       const x = t.x + cx * C.BARREL_LEN;
       const y = t.y + sy * C.BARREL_LEN;
-      const speed = this.ammo.speed;
-      this.bullets.push({
-        id: this.nextId++, owner: t.index, x, y, vx: cx * speed, vy: sy * speed, speed, bounces: 0,
-        maxBounces: this.ammo.bounces + (this.mechKey === 'playroom' ? 1 : 0), bent: 0, age: 0, dead: false,
-      });
+      const speed = t.gun.speed;
+      const angles = t.spread > 0 ? [t.turret, t.turret - C.SPREAD_ANGLE, t.turret + C.SPREAD_ANGLE] : [t.turret];
+      for (const a of angles) {
+        const ox = Math.cos(a), oy = Math.sin(a);
+        // side shells of a triple shot start a touch further out, and only if clear
+        if (a !== t.turret && this.circleHits(t.x + ox * C.BARREL_LEN, t.y + oy * C.BARREL_LEN, C.BULLET_RADIUS, World.blocksShell)) continue;
+        this.bullets.push({
+          id: this.nextId++, owner: t.index, x: t.x + ox * C.BARREL_LEN, y: t.y + oy * C.BARREL_LEN, vx: ox * speed, vy: oy * speed, speed, bounces: 0,
+          maxBounces: t.shotBounces(), bent: 0, age: 0, dead: false, extra: a !== t.turret,
+        });
+      }
       this.emit({ type: 'fire', player: t.index, x, y, angle: t.turret });
     }
 
@@ -472,6 +536,11 @@ window.RR = window.RR || {};
 
     destroyTank(t, by, cause, shell) {
       if (!t.alive) return;
+      if (t.shield && cause !== 'eruption') {
+        t.shield = false;
+        this.emit({ type: 'shieldPop', player: t.index, x: t.x, y: t.y });
+        return;
+      }
       t.alive = false;
       t.speed = 0;
       t.vx = t.vy = 0;
@@ -594,7 +663,7 @@ window.RR = window.RR || {};
         if (!m.armed && m.age >= C.MINE_ARM_TIME) m.armed = true;
         if (m.armed && !m.triggered) {
           for (const t of this.tanks) {
-            if (!t.alive || t.index === m.owner) continue;
+            if (!t.alive || t.index === m.owner || (this.tanks[m.owner] && this.tanks[m.owner].team === t.team && this.campaign)) continue;
             if (Math.hypot(t.x - m.x, t.y - m.y) < C.MINE_TRIGGER_RADIUS) {
               m.triggered = true;
               m.fuse = Math.min(m.fuse, C.MINE_TRIGGER_FUSE);
@@ -649,6 +718,73 @@ window.RR = window.RR || {};
           o.fuse = Math.min(o.fuse, C.MINE_CHAIN_DELAY);
         }
       }
+    }
+
+    // ---- power-ups -------------------------------------------------------------
+    updatePowerups(dt) {
+      for (const p of this.powerups) p.age += dt;
+      this.powerups = this.powerups.filter((p) => p.age < C.POWERUP_LIFE);
+      this.powerupTimer -= dt;
+      if (this.powerupTimer <= 0) {
+        const [lo, hi] = C.POWERUP_EVERY;
+        this.powerupTimer = lo + Math.random() * (hi - lo);
+        if (this.powerups.length < C.POWERUP_MAX) this.spawnPowerup();
+      }
+      const R = C.POWERUP_RADIUS + C.TANK_RADIUS;
+      for (const p of this.powerups) {
+        if (p.taken) continue;
+        for (const t of this.tanks) {
+          if (!t.alive || t.ai) continue;
+          if (Math.hypot(t.x - p.x, t.y - p.y) > R) continue;
+          p.taken = true;
+          this.applyPowerup(t, p.kind);
+          this.emit({ type: 'powerup', player: t.index, kind: p.kind, x: p.x, y: p.y });
+          // in a duel, taking one makes its twin vanish
+          if (p.twin) {
+            const o = this.powerups.find((q) => q.id === p.twin && !q.taken);
+            if (o) { o.taken = true; this.emit({ type: 'powerupGone', x: o.x, y: o.y }); }
+          }
+          break;
+        }
+      }
+      this.powerups = this.powerups.filter((p) => !p.taken);
+    }
+
+    spawnPowerup() {
+      const kinds = Object.keys(C.POWERUPS);
+      const kind = kinds[Math.floor(Math.random() * kinds.length)];
+      const ok = (x, y) => this.tileAt(Math.floor(x), Math.floor(y)) === T.FLOOR
+        && !this.circleHits(x, y, 0.45, World.blocksTank)
+        && this.tanks.every((t) => !t.alive || Math.hypot(t.x - x, t.y - y) > 2.5)
+        && this.mines.every((m) => Math.hypot(m.x - x, m.y - y) > 1.2)
+        && this.powerups.every((p) => Math.hypot(p.x - x, p.y - y) > 2);
+      for (let i = 0; i < 40; i++) {
+        const x = Math.floor(1 + Math.random() * (C.COLS - 2)) + 0.5;
+        const y = Math.floor(1 + Math.random() * (C.ROWS - 2)) + 0.5;
+        if (!ok(x, y)) continue;
+        const p = { id: this.nextId++, kind, x, y, age: 0 };
+        this.powerups.push(p);
+        this.emit({ type: 'powerupSpawn', kind, x, y });
+        if (!this.campaign) {
+          const [mx, my] = this.mirrorPoint(x, y);
+          if (Math.hypot(mx - x, my - y) > 1 && ok(mx, my)) {
+            const q = { id: this.nextId++, kind, x: mx, y: my, age: 0, twin: p.id };
+            p.twin = q.id;
+            this.powerups.push(q);
+            this.emit({ type: 'powerupSpawn', kind, x: mx, y: my });
+          }
+        }
+        return;
+      }
+    }
+
+    applyPowerup(t, kind) {
+      const d = C.POWERUPS[kind];
+      if (kind === 'shield') t.shield = true;
+      else if (kind === 'speed') t.boost = d.time;
+      else if (kind === 'spread') t.spread = d.time;
+      else if (kind === 'bouncy') t.bouncy = d.time;
+      else if (kind === 'rapid') t.rapid = d.time;
     }
 
     drainEvents() {

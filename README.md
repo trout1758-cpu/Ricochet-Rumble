@@ -1,6 +1,6 @@
 # Ricochet Rumble
 
-A two-player toy-tank duel for the big screen, with **phones as controllers**: any phone over Wi-Fi by scanning a QR code, or Android phones over Bluetooth with the Ricochet Pad app.
+A toy-tank game for the big screen (two-player duels and a co-op campaign against CPU tanks), with **phones as controllers**: any phone over Wi-Fi by scanning a QR code, or Android phones over Bluetooth with the Ricochet Pad app.
 
 ![Ricochet Rumble gameplay](docs/screenshot.jpg)
 
@@ -17,6 +17,37 @@ The project has two parts:
 | **Ricochet Pad** | Android app that connects over Bluetooth instead, for when there's no usable Wi-Fi. | [`controller-android/`](controller-android) |
 
 Either player can also use a **Wii Remote + Nunchuk** (classic Wii Play controls), a keyboard and mouse, the arrow keys, or a USB/Bluetooth gamepad.
+
+### Game modes
+
+- **Duel:** head to head, first to 3, 5 or 7 rounds. No second player? Click **Computer** on Player 2's card to play against a CPU tank that banks shots off walls and lays mines.
+- **Co-op campaign:** one or two players team up against **20 stages** of CPU tanks.
+  Clear every enemy tank to move on. You share 3 lives and get an extra life every 5 stages.
+  A stage is lost when every player's tank is knocked out; you then retry it.
+  Watch out for friendly fire.
+
+| Enemy | Colour | What it does |
+| --- | --- | --- |
+| Rookie | khaki | Stays put, slow single shots, only fires when it can see you |
+| Scout | sage green | Wanders about, two shells at a time |
+| Bouncer | pink | Plans shots with up to two bounces off the walls |
+| Dasher | orange | Fast, dodges shells, fires quick rockets |
+| Sapper | charcoal | Lays mines and bank-shots you |
+| Marksman | white | Stays put; fast, precise shots around corners |
+| Commander | gold | Fast-firing, mobile, dodges, mines: the boss |
+
+### Power-ups
+
+With **Power-ups** on (lobby), glowing pickups appear in the arena every so often. In a duel they arrive in mirrored pairs, and grabbing one makes its twin vanish.
+Drive over one to take it:
+
+| Power-up | Colour | Effect |
+| --- | --- | --- |
+| Shield | blue | Blocks one hit (shell or mine) |
+| Turbo | yellow | Drive 50% faster for 8 s |
+| Triple shot | red | Every shot fires three shells for 9 s |
+| Super bounce | purple | Shells bounce two extra times for 12 s |
+| Rapid fire | green | Three more shells in the air and a faster trigger for 10 s |
 
 ---
 
@@ -147,7 +178,6 @@ The classic Wii Play Tanks controls:
 
 **Aiming needs a sensor bar** in front of or on top of the screen (a Wii's own bar needs the Wii switched on; USB sensor bars work too).
 Without one, the remote falls back to **tilt aiming**: tip it forwards/back and twist it left/right to swing the turret.
-If the crosshair moves the wrong way, press **1** to flip it up/down or **2** to flip it left/right (remembered for next time).
 Without a Nunchuk, the D-pad drives.
 
 If a Wii Remote turns itself off, press any button on it to reconnect (on Windows you may need to press sync again).
@@ -295,6 +325,8 @@ game/                      Desktop game (plain HTML/CSS/JS, no build step)
   js/world.js              Simulation (tanks, shells, mines, collisions)
   js/render.js             Canvas renderer, particles, decals
   js/audio.js              Synthesised sound effects and music
+  js/ai.js                 CPU tank brains: shot tracing with bounces, pathfinding, dodging
+  js/campaign.js           Co-op campaign stages
   js/input.js              Keyboard, mouse and gamepad
   js/wiimote.js            Wii Remotes + Nunchuk over WebHID (IR pointer, tilt fallback, rumble)
   js/ble.js                Android app over Web Bluetooth

@@ -11,7 +11,7 @@ const root = path.join(__dirname, '..', 'js');
 const sandbox = { console, Math, TextEncoder, TextDecoder, performance: { now: () => Date.now() } };
 sandbox.window = sandbox;
 vm.createContext(sandbox);
-for (const f of ['config.js', 'util.js', 'protocol.js', 'arenas.js', 'world.js', 'wiimote.js']) {
+for (const f of ['config.js', 'util.js', 'protocol.js', 'arenas.js', 'ai.js', 'world.js', 'campaign.js', 'wiimote.js']) {
   vm.runInContext(fs.readFileSync(path.join(root, f), 'utf8'), sandbox, { filename: f });
 }
 const RR = sandbox.RR;
@@ -396,6 +396,138 @@ test('profile packets: decoded, and never mistaken for stick input', () => {
 });
 
 
+
+console.log('Campaign, CPU tanks, power-ups');
+{
+  const colors = [C.PLAYER_COLORS[0], C.PLAYER_COLORS[1]];
+  test('campaign: every stage has its enemies on open floor, away from the players and each other', () => {
+    for (let n = 1; n <= RR.Campaign.count; n++) {
+      const st = RR.Campaign.stage(n);
+      if (st.enemies.length !== C.CAMPAIGN.STAGES[n - 1].length) throw new Error(`stage ${n}: placed ${st.enemies.length}`);
+      const w = new RR.World(st.def, { colors, campaign: true, enemies: st.enemies, spawns: st.spawns });
+      for (const e of w.tanks.slice(2)) {
+        if (w.circleHits(e.x, e.y, C.TANK_RADIUS, (t) => t !== T.FLOOR)) throw new Error(`stage ${n}: enemy in a wall`);
+        for (const p of w.tanks.slice(0, 2)) if (Math.hypot(p.x - e.x, p.y - e.y) < 6) throw new Error(`stage ${n}: enemy too close`);
+      }
+      for (const p of w.tanks.slice(0, 2)) if (w.circleHits(p.x, p.y, C.TANK_RADIUS, (t) => t !== T.FLOOR)) throw new Error(`stage ${n}: player in a wall`);
+    }
+  });
+
+  // An open box with one block in the middle: player on the left, CPU on the right.
+  const boxDef = {
+    name: 'Test box', theme: 'workshop',
+    rows: [
+      '###########',
+      '#..........',
+      '#..........',
+      '#..........',
+      '#..........',
+      '#..........',
+      '#1.........',
+      '#..........',
+      '#..........',
+      '#..........',
+      '#..........',
+      '#..........',
+      '###########',
+    ],
+  };
+  const fmt = RR.ARENA_DEFS[0];
+  const rowsKey = Object.keys(fmt).find((k) => Array.isArray(fmt[k]));
+  const def = Object.assign({}, boxDef, { [rowsKey]: boxDef.rows });
+  if (rowsKey !== 'rows') delete def.rows;
+
+  test('cpu: a Marksman with a wall in the way finds a bank shot and hits', () => {
+    const w = new RR.World(def, { colors, campaign: true, absent: [1], enemies: [{ type: 'marksman', x: 16.5, y: 6.5, angle: Math.PI }] });
+    w.frozen = false;
+    const p = w.tanks[0];
+    // the block at the centre-right shields a straight line? put the player behind cover
+    p.x = 9.5; p.y = 6.5;
+    w.setTile(11, 6, T.WALL); w.setTile(11, 5, T.WALL); w.setTile(11, 7, T.WALL);
+    let killed = false;
+    for (let i = 0; i < C.SIM_HZ * 12 && !killed; i++) {
+      w.update(1 / C.SIM_HZ, [RR.NO_INPUT, RR.NO_INPUT]);
+      for (const ev of w.drainEvents()) if (ev.type === 'tankDestroyed' && ev.player === 0 && ev.by === 2) killed = ev;
+    }
+    if (!killed) throw new Error('the Marksman never hit');
+    if (killed.bounces < 1) throw new Error('expected a bank shot, got a straight one');
+  });
+
+  test('cpu: a moving CPU tank roams without getting stuck and fires', () => {
+    const w = new RR.World(def, { colors, campaign: true, absent: [1], enemies: [{ type: 'dasher', x: 16.5, y: 3.5, angle: Math.PI }] });
+    w.frozen = false;
+    const e = w.tanks[2];
+    const start = { x: e.x, y: e.y };
+    let fired = 0, maxD = 0;
+    for (let i = 0; i < C.SIM_HZ * 8; i++) {
+      w.tanks[0].alive = true; // keep the target alive
+      w.update(1 / C.SIM_HZ, [RR.NO_INPUT, RR.NO_INPUT]);
+      for (const ev of w.drainEvents()) if (ev.type === 'fire' && ev.player === 2) fired++;
+      maxD = Math.max(maxD, Math.hypot(e.x - start.x, e.y - start.y));
+      if (w.circleHits(e.x, e.y, C.TANK_RADIUS * 0.9, (t) => t !== T.FLOOR)) throw new Error('drove into a wall');
+    }
+    if (maxD < 1.5) throw new Error('did not move: ' + maxD.toFixed(2));
+    if (fired < 2) throw new Error('fired ' + fired);
+  });
+
+  test('cpu: does not shoot when its only line is blocked by a team-mate', () => {
+    const w = new RR.World(def, { colors, campaign: true, absent: [1], enemies: [{ type: 'rookie', x: 16.5, y: 9.5, angle: Math.PI }, { type: 'rookie', x: 12.5, y: 9.5, angle: Math.PI }] });
+    const shooter = w.tanks[2];
+    const r = RR.AI.traceShot(w, shooter, Math.PI, 0);
+    if (!r.hit || r.hit !== w.tanks[3]) throw new Error('trace should see the team-mate first');
+  });
+
+  test('power-ups: a shield soaks up one hit', () => {
+    const w = new RR.World(def, { colors });
+    w.frozen = false;
+    const t = w.tanks[0];
+    w.applyPowerup(t, 'shield');
+    w.destroyTank(t, 1, 'shell');
+    if (!t.alive || t.shield) throw new Error('shield should pop and the tank live');
+    w.destroyTank(t, 1, 'shell');
+    if (t.alive) throw new Error('second hit should count');
+  });
+
+  test('power-ups: triple shot fires three shells but only uses one', () => {
+    const w = new RR.World(def, { colors });
+    w.frozen = false;
+    const t = w.tanks[0];
+    t.turret = t.turretTarget = 0;
+    w.applyPowerup(t, 'spread');
+    w.tryFire(t, RR.NO_INPUT);
+    if (w.bullets.length !== 3) throw new Error('bullets ' + w.bullets.length);
+    if (w.shellsLeft(0) !== w.ammo.max - 1) throw new Error('should count as one shell');
+  });
+
+  test('power-ups: drive over one to pick it up; in a duel they come in mirrored pairs', () => {
+    const w = new RR.World(def, { colors, powerups: true });
+    w.frozen = false;
+    w.powerupTimer = 0;
+    w.update(1 / C.SIM_HZ, [RR.NO_INPUT, RR.NO_INPUT]);
+    if (w.powerups.length !== 2) throw new Error('expected a pair, got ' + w.powerups.length);
+    const p = w.powerups[0];
+    const t = w.tanks[0];
+    t.x = p.x; t.y = p.y;
+    w.update(1 / C.SIM_HZ, [RR.NO_INPUT, RR.NO_INPUT]);
+    if (w.powerups.length !== 0) throw new Error('both should be gone');
+    const evs = w.drainEvents().filter((e) => e.type === 'powerup');
+    if (evs.length !== 1 || evs[0].player !== 0) throw new Error('pickup event');
+  });
+
+  test('cpu: duel opponent plays a full round against a sitting target and wins', () => {
+    const w = new RR.World(RR.ARENA_DEFS[0], { colors, cpu: { 1: 'rival' } });
+    w.frozen = false;
+    let over = false;
+    for (let i = 0; i < C.SIM_HZ * 30 && !over; i++) {
+      w.update(1 / C.SIM_HZ, [RR.NO_INPUT, null]);
+      w.drainEvents();
+      over = !w.tanks[0].alive;
+    }
+    if (!over) throw new Error('the CPU never won');
+    if (!w.tanks[1].alive) throw new Error('the CPU shot itself');
+  });
+}
+
 console.log('Wii Remote');
 {
   const W = RR.WiimoteParse;
@@ -434,21 +566,21 @@ console.log('Wii Remote');
   });
   test('wiimote: pointer is centred when the bar is centred, and mirrors the camera', () => {
     const st = {};
-    const c = W.irToPointer([{ x: 400, y: 384 }, { x: 624, y: 384 }], st, false, false);
+    const c = W.irToPointer([{ x: 400, y: 384 }, { x: 624, y: 384 }], st);
     if (Math.abs(c.x - 0.5) > 1e-6 || Math.abs(c.y - 0.5) > 1e-6) throw new Error(JSON.stringify(c));
-    const right = W.irToPointer([{ x: 300, y: 384 }, { x: 524, y: 384 }], {}, false, false);
+    const right = W.irToPointer([{ x: 300, y: 384 }, { x: 524, y: 384 }], {});
     if (!(right.x > 0.5)) throw new Error('bar moving left in the camera should move the pointer right');
   });
   test('wiimote: twisting the remote does not move the pointer', () => {
     const a = 0.4, cx = 512, cy = 384, h = 112;
     const dots = [{ x: cx - h * Math.cos(a), y: cy - h * Math.sin(a) }, { x: cx + h * Math.cos(a), y: cy + h * Math.sin(a) }];
-    const p = W.irToPointer(dots, {}, false, false);
+    const p = W.irToPointer(dots, {});
     if (Math.abs(p.x - 0.5) > 1e-6 || Math.abs(p.y - 0.5) > 1e-6) throw new Error(JSON.stringify(p));
   });
   test('wiimote: one dot out of view keeps the pointer steady', () => {
     const st = {};
-    const both = W.irToPointer([{ x: 450, y: 300 }, { x: 650, y: 300 }], st, false, false);
-    const one = W.irToPointer([{ x: 450, y: 300 }], st, false, false);
+    const both = W.irToPointer([{ x: 450, y: 300 }, { x: 650, y: 300 }], st);
+    const one = W.irToPointer([{ x: 450, y: 300 }], st);
     if (Math.abs(both.x - one.x) > 1e-6 || Math.abs(both.y - one.y) > 1e-6) throw new Error(JSON.stringify({ both, one }));
   });
 }

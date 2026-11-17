@@ -526,3 +526,15 @@ body.letterbox #letterbox-bars i { height: 7vh; }
 /* Wii Remote pointers in menus */
 .wii-cursor { position: fixed; left: 0; top: 0; z-index: 200; pointer-events: none; filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.45)); }
 .wii-cursor b { position: absolute; left: 26px; top: 26px; font: 900 12px system-ui, sans-serif; color: #fff; background: var(--pc, #333); padding: 1px 5px; border-radius: 6px; border: 2px solid #1d1a24; }
+
+/* Modes, campaign and power-ups */
+.mode-seg { justify-content: stretch; margin-bottom: 4px; }
+.mode-seg button { flex: 1; font-size: 16px; padding: 8px 10px; }
+.campaign-info { background: var(--paper-2); border-radius: 12px; padding: 4px 14px; font-size: 14px; line-height: 1.4; }
+.campaign-info p { margin: 8px 0; }
+.campaign-best:empty { display: none; }
+.hud-kills { font: 700 17px "Lilita One", system-ui, sans-serif; color: #fff; letter-spacing: 0.02em; }
+.hud-kills small { font-size: 12px; opacity: 0.8; }
+.hud-player.absent { opacity: 0.25; }
+.hud-shells em.pu { display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: var(--pu); border: 2px solid #1d1a24; margin-left: 5px; vertical-align: -1px; animation: pu-pulse 0.8s ease-in-out infinite alternate; }
+@keyframes pu-pulse { from { transform: scale(0.85); } to { transform: scale(1.1); } }

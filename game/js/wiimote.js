@@ -47,7 +47,7 @@ window.RR = window.RR || {};
 
   // The two brightest IR dots (the sensor bar's ends) -> pointer position in
   // 0..1 screen coordinates, compensating for the remote being twisted.
-  function irToPointer(dots, state, flipX, flipY) {
+  function irToPointer(dots, state) {
     let mid = null;
     if (dots.length >= 2) {
       let a = dots[0], b = dots[1];
@@ -79,18 +79,11 @@ window.RR = window.RR || {};
     const rx = cx + dx * Math.cos(r) - dy * Math.sin(r);
     const ry = cy + dx * Math.sin(r) + dy * Math.cos(r);
     // the camera sees the bar move the opposite way to where you point
-    let x = 1 - rx / 1024, y = ry / 768;
-    if (flipX) x = 1 - x;
-    if (flipY) y = 1 - y;
+    const x = 1 - rx / 1024, y = ry / 768;
     // a little gain so the whole screen is reachable without big arm movements
     const G = 1.45;
     return { x: 0.5 + (x - 0.5) * G, y: 0.5 + (y - 0.5) * G };
   }
-
-  const prefs = (() => {
-    try { return JSON.parse(localStorage.getItem('ricochet-wiimote') || '{}'); } catch (e) { return {}; }
-  })();
-  const savePrefs = () => { try { localStorage.setItem('ricochet-wiimote', JSON.stringify(prefs)); } catch (e) { /* private mode */ } };
 
   // ---- the controller -----------------------------------------------------------
   class WiimoteController {
@@ -115,8 +108,6 @@ window.RR = window.RR || {};
       this.onReport = (e) => this.handle(e.reportId, new Uint8Array(e.data.buffer, e.data.byteOffset, e.data.byteLength));
       device.addEventListener('inputreport', this.onReport);
     }
-
-    get flip() { return prefs['p' + this.player] || { x: false, y: false }; }
 
     async start() {
       this.started = false;
@@ -214,16 +205,7 @@ window.RR = window.RR || {};
       if (pressed & BTN.B) this.fire++;
       if (pressed & BTN.A) { this.mine++; this.click++; }
       if (pressed & (BTN.PLUS | BTN.HOME)) this.pause++;
-      // 1 / 2 flip the aim up-down / left-right if it moves the wrong way
-      if (pressed & (BTN.ONE | BTN.TWO)) {
-        const f = Object.assign({}, this.flip);
-        if (pressed & BTN.ONE) f.y = !f.y;
-        if (pressed & BTN.TWO) f.x = !f.x;
-        prefs['p' + this.player] = f;
-        savePrefs();
-        this.rumble(60, 0.5);
-      }
-      const p = irToPointer(s.ir, this.ptr, this.flip.x, this.flip.y);
+      const p = irToPointer(s.ir, this.ptr);
       if (p) {
         this.lastIrAt = performance.now();
         this.cursor = this.cursor ? { x: this.cursor.x + (p.x - this.cursor.x) * 0.45, y: this.cursor.y + (p.y - this.cursor.y) * 0.45 } : p;
@@ -263,7 +245,7 @@ window.RR = window.RR || {};
         const a = s.accel;
         const roll = Math.atan2(a.x, Math.max(0.2, a.z));
         const pitch = Math.atan2(a.y, Math.max(0.2, a.z));
-        let ax = roll * (this.flip.x ? -1 : 1), ay = -pitch * (this.flip.y ? -1 : 1);
+        const ax = roll, ay = -pitch;
         const m = Math.hypot(ax, ay);
         const active = m > 0.3;
         if (active) this.tiltAim = { x: ax / m, y: ay / m };

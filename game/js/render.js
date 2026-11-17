@@ -1124,6 +1124,7 @@ window.RR = window.RR || {};
       this.drawFloorEffects(ctx, w);
       this.drawShadows(ctx);
       for (const m of w.mines) this.drawMine(ctx, m);
+      for (const p of w.powerups || []) this.drawPowerup(ctx, p);
 
       // Blocks and tanks, back to front.
       const bh = this.bh;
@@ -1136,7 +1137,10 @@ window.RR = window.RR || {};
           ctx.drawImage(spr, this.ox + c * s, this.oy + r * s - bh);
         }
         for (const tank of w.tanks) {
-          if (tank.alive && Math.floor(tank.y) === r) this.drawTank(ctx, tank);
+          if (tank.alive && Math.floor(tank.y) === r) {
+            this.drawTank(ctx, tank);
+            if (tank.shield || tank.boost > 0 || tank.spread > 0 || tank.bouncy > 0 || tank.rapid > 0) this.drawPowered(ctx, tank);
+          }
         }
       }
 
@@ -1616,12 +1620,117 @@ window.RR = window.RR || {};
       ctx.restore();
     }
 
+    // A floating power-up: glowing disc with a symbol, bobbing and spinning.
+    drawPowerup(ctx, p) {
+      const s = this.s;
+      const d = C.POWERUPS[p.kind];
+      const fade = p.age > C.POWERUP_LIFE - 3 ? (Math.floor(p.age * 8) % 2 ? 0.35 : 1) : 1;
+      const grow = Math.min(1, p.age * 4);
+      const X = this.ox + p.x * s;
+      const bob = Math.sin(this.time * 3 + p.id) * s * 0.06;
+      const Y = this.oy + p.y * s - s * 0.28 + bob;
+      const R = s * 0.32 * grow;
+      ctx.save();
+      ctx.globalAlpha = 0.25 * fade;
+      ctx.fillStyle = '#000';
+      ctx.beginPath();
+      ctx.ellipse(X, this.oy + p.y * s + s * 0.1, R * 0.9, R * 0.35, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = fade;
+      const glow = ctx.createRadialGradient(X, Y, R * 0.3, X, Y, R * 1.8);
+      glow.addColorStop(0, d.color + 'aa');
+      glow.addColorStop(1, d.color + '00');
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(X, Y, R * 1.8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = d.color;
+      ctx.strokeStyle = '#1d1a24';
+      ctx.lineWidth = Math.max(1.5, s * 0.05);
+      ctx.beginPath();
+      ctx.arc(X, Y, R, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,0.45)';
+      ctx.beginPath();
+      ctx.ellipse(X - R * 0.3, Y - R * 0.38, R * 0.38, R * 0.2, -0.5, 0, Math.PI * 2);
+      ctx.fill();
+      // symbol
+      ctx.translate(X, Y);
+      ctx.scale(Math.cos(this.time * 2 + p.id) * 0.25 + 0.85, 1);
+      ctx.fillStyle = '#fff';
+      ctx.strokeStyle = '#1d1a24';
+      ctx.lineWidth = Math.max(1, s * 0.035);
+      const k = R * 0.55;
+      ctx.beginPath();
+      if (p.kind === 'shield') {
+        ctx.moveTo(0, -k); ctx.lineTo(k * 0.85, -k * 0.6); ctx.lineTo(k * 0.7, k * 0.3); ctx.lineTo(0, k); ctx.lineTo(-k * 0.7, k * 0.3); ctx.lineTo(-k * 0.85, -k * 0.6);
+      } else if (p.kind === 'speed') {
+        ctx.moveTo(k * 0.2, -k); ctx.lineTo(-k * 0.6, k * 0.15); ctx.lineTo(0, k * 0.15); ctx.lineTo(-k * 0.2, k); ctx.lineTo(k * 0.6, -k * 0.15); ctx.lineTo(0, -k * 0.15);
+      } else if (p.kind === 'spread') {
+        for (const a of [-0.5, 0, 0.5]) {
+          const x = Math.sin(a) * k * 0.9, y = -Math.cos(a) * k * 0.9;
+          ctx.moveTo(x + k * 0.22, y); ctx.arc(x, y, k * 0.22, 0, Math.PI * 2);
+        }
+        ctx.moveTo(k * 0.2, k * 0.6); ctx.arc(0, k * 0.6, k * 0.2, 0, Math.PI * 2);
+      } else if (p.kind === 'bouncy') {
+        ctx.moveTo(-k, -k * 0.6); ctx.lineTo(-k * 0.3, k * 0.7); ctx.lineTo(k * 0.3, -k * 0.7); ctx.lineTo(k, k * 0.6);
+        ctx.lineTo(k * 0.85, k * 0.75); ctx.lineTo(k * 0.3, -k * 0.35); ctx.lineTo(-k * 0.3, k * 1.0); ctx.lineTo(-k * 1.1, -k * 0.5);
+      } else {
+        for (const x of [-0.55, 0, 0.55]) { ctx.rect(x * k - k * 0.16, -k * 0.75, k * 0.32, k * 1.5); }
+      }
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Shield bubble and other power-up glows around a tank.
+    drawPowered(ctx, t) {
+      const s = this.s;
+      const X = this.ox + t.x * s, Y = this.oy + t.y * s - s * 0.12;
+      ctx.save();
+      if (t.shield) {
+        const R = s * 0.62 + Math.sin(this.time * 6) * s * 0.02;
+        const g = ctx.createRadialGradient(X, Y, R * 0.6, X, Y, R);
+        g.addColorStop(0, 'rgba(90,209,255,0.05)');
+        g.addColorStop(1, 'rgba(90,209,255,0.45)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(X, Y, R, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(200,240,255,0.9)';
+        ctx.lineWidth = Math.max(1.5, s * 0.04);
+        ctx.beginPath();
+        ctx.arc(X, Y, R, -2.4 + this.time, -1.2 + this.time);
+        ctx.stroke();
+      }
+      const rings = [['boost', 'speed'], ['spread', 'spread'], ['bouncy', 'bouncy'], ['rapid', 'rapid']].filter(([k]) => t[k] > 0);
+      rings.forEach(([k, pk], i) => {
+        const left = t[k];
+        const blink = left < 2 && Math.floor(left * 8) % 2;
+        if (blink) return;
+        ctx.strokeStyle = C.POWERUPS[pk].color;
+        ctx.globalAlpha = 0.85;
+        ctx.lineWidth = Math.max(1.5, s * 0.05);
+        ctx.setLineDash([s * 0.12, s * 0.1]);
+        ctx.lineDashOffset = -this.time * s * (i % 2 ? -0.8 : 0.8);
+        ctx.beginPath();
+        ctx.ellipse(X, Y + s * 0.18, s * (0.5 + i * 0.09), s * (0.25 + i * 0.05), 0, 0, Math.PI * 2);
+        ctx.stroke();
+      });
+      ctx.restore();
+      if (t.boost > 0 && Math.abs(t.speed) > 0.5 && Math.random() < 0.5) {
+        const a = t.angle + Math.PI;
+        this.fx.add({ kind: 'spark', x: t.x + Math.cos(a) * 0.4 + (Math.random() - 0.5) * 0.2, y: t.y + Math.sin(a) * 0.4 + (Math.random() - 0.5) * 0.2, vx: Math.cos(a) * 1.5, vy: Math.sin(a) * 1.5, life: 0.25, drag: 3, color: C.POWERUPS.speed.color });
+      }
+    }
+
     drawLabel(ctx, t) {
       const s = this.s;
       const X = this.ox + t.x * s;
       const Y = this.oy + (t.y - 0.85) * s + Math.sin(this.time * 5) * s * 0.05;
-      const label = 'P' + (t.index + 1);
-      ctx.font = `700 ${Math.round(s * 0.38)}px "Lilita One", "Arial Rounded MT Bold", system-ui, sans-serif`;
+      const label = t.label || 'P' + (t.index + 1);
+      ctx.font = `700 ${Math.round(s * (t.team === 1 ? 0.3 : 0.38))}px "Lilita One", "Arial Rounded MT Bold", system-ui, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       const wdt = ctx.measureText(label).width + s * 0.3;

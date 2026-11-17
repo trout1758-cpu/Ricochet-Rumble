@@ -19,6 +19,7 @@
   // Settings (remembered between visits)
   // ---------------------------------------------------------------------------
   const DEFAULTS = {
+    mode: 'duel', powerups: true, bestStage: 0,
     wins: 5, arena: 'rotation', ammo: 'classic', mines: true, music: true, effects: true, replay: true,
     names: ['Player 1', 'Player 2'], colors: [0, 1],
   };
@@ -234,6 +235,12 @@
     });
 
     const segs = {
+      '#set-mode': (v) => {
+        settings.mode = v;
+        // the computer opponent is only for duels
+        players.forEach((p, i) => { if (v === 'campaign' && p.controller && p.controller.kind === 'cpu') removeController(i, true); });
+      },
+      '#set-powerups': (v) => { settings.powerups = v === 'on'; },
       '#set-wins': (v) => { settings.wins = Number(v); },
       '#set-ammo': (v) => { settings.ammo = v; },
       '#set-mines': (v) => { settings.mines = v === 'on'; },
@@ -395,6 +402,14 @@
   }
 
   function refreshLobby() {
+    const campaign = settings.mode === 'campaign';
+    $$('#set-mode button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === settings.mode)));
+    $$('#set-powerups button').forEach((b) => b.setAttribute('aria-pressed', String((b.dataset.v === 'on') === settings.powerups)));
+    $$('.duel-only').forEach((el) => el.classList.toggle('hidden', campaign));
+    $$('.campaign-only').forEach((el) => el.classList.toggle('hidden', !campaign));
+    $('#campaign-best').textContent = settings.bestStage > 0 ? `Best so far: stage ${settings.bestStage} of ${RR.Campaign.count}.` : '';
+    $('.match-panel h2').textContent = campaign ? 'Co-op campaign' : 'Match setup';
+    $('#btn-start').textContent = campaign ? 'Start campaign' : 'Start match';
     $$('#set-wins button').forEach((b) => b.setAttribute('aria-pressed', String(Number(b.dataset.v) === settings.wins)));
     $$('#set-ammo button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === settings.ammo)));
     $$('#set-mines button').forEach((b) => b.setAttribute('aria-pressed', String((b.dataset.v === 'on') === settings.mines)));
@@ -448,13 +463,28 @@
       rb.textContent = p.ready ? 'Ready!' : ctl ? 'Ready? (press fire)' : 'Ready';
     });
 
-    const both = players.every((p) => p.controller);
-    $('#btn-start').disabled = !both;
+    const ok = canStart();
+    $('#btn-start').disabled = !ok;
     let hint;
-    if (!both) hint = 'Give both players a controller.';
+    if (!ok) hint = campaign ? 'Give at least one player a controller.' : 'Give both players a controller (or make Player 2 the computer).';
     else if (game.lobbyCountdown > 0) hint = `Starting in ${Math.ceil(game.lobbyCountdown)}…`;
-    else hint = 'Press fire on both controllers, or click Start.';
+    else hint = campaign && players.filter((p) => p.controller).length === 1 ? 'Solo run! Press fire, or click Start.' : 'Press fire on every controller, or click Start.';
     $('#start-hint').textContent = hint;
+    $$('[data-src="cpu"]').forEach((b) => b.classList.toggle('hidden', campaign));
+  }
+
+  // The computer opponent (duels only): the world drives this tank itself.
+  function cpuController() {
+    return {
+      kind: 'cpu', label: 'Computer', detail: 'Banks shots off walls · lays mines', connected: true,
+      read() { return null; }, rumble() {}, dispose() {},
+    };
+  }
+
+  function canStart() {
+    const humans = players.filter((p) => p.controller && p.controller.kind !== 'cpu');
+    if (settings.mode === 'campaign') return humans.length >= 1;
+    return players.every((p) => p.controller) && humans.length >= 1;
   }
 
   async function chooseController(i, src) {
@@ -469,6 +499,10 @@
       }
       game.qrWait = { player: i, urlIndex: 0 };
       RR.Wifi.refreshUrls();
+      refreshLobby();
+    } else if (src === 'cpu') {
+      assignController(i, cpuController());
+      players[i].ready = true;
       refreshLobby();
     } else if (src === 'kbm' || src === 'arrows') {
       if (other.controller && other.controller.kind === src) removeController(1 - i, true);
@@ -526,7 +560,7 @@
     }
     ctl.rumble(150, 0.7);
     audio.connect();
-    toast(`${p.name}: ${ctl.label} ready${ctl.assign ? ' (' + ctl.detail + ')' : ''}`, colorOf(i).body);
+    toast(ctl.kind === 'cpu' ? `${p.name} is the computer` : `${p.name}: ${ctl.label} ready${ctl.assign ? ' (' + ctl.detail + ')' : ''}`, colorOf(i).body);
     refreshLobby();
   }
 
@@ -563,7 +597,8 @@
     p.ready = !p.ready;
     if (p.ready) audio.countdown(); else audio.click();
     p.controller.rumble(p.ready ? 120 : 40, 0.6);
-    if (!players.every((q) => q.ready)) game.lobbyCountdown = 0;
+    const present = players.filter((q) => q.controller);
+    if (!canStart() || !present.every((q) => q.ready)) game.lobbyCountdown = 0;
     else game.lobbyCountdown = 2.99;
     refreshLobby();
   }
@@ -647,7 +682,7 @@
   // Match flow
   // ---------------------------------------------------------------------------
   function newStats() {
-    return { shots: 0, hits: 0, bounces: 0, mines: 0, selfKills: 0, deaths: 0, trick: 0 };
+    return { shots: 0, hits: 0, bounces: 0, mines: 0, selfKills: 0, deaths: 0, trick: 0, powerups: 0 };
   }
 
   function inMatch() {
@@ -655,7 +690,7 @@
   }
 
   function startMatch() {
-    if (!players.every((p) => p.controller)) return;
+    if (!canStart()) return;
     audio.unlock();
     clearReplay();
     game.lobbyCountdown = 0;
@@ -674,7 +709,121 @@
     show('#hud', true);
     applyPlayerColors();
     buildHudPips();
+    game.campaign = settings.mode === 'campaign'
+      ? { stage: 1, lives: C.CAMPAIGN.LIVES, cleared: 0, retries: 0 }
+      : null;
+    document.body.classList.toggle('campaign', !!game.campaign);
     nextRound();
+  }
+
+  function worldOpts() {
+    const cpu = {};
+    players.forEach((p, i) => { if (p.controller && p.controller.kind === 'cpu') cpu[i] = 'rival'; });
+    return {
+      ammo: ammo(), minesEnabled: settings.mines, effects: settings.effects, colors: [colorOf(0), colorOf(1)],
+      powerups: settings.powerups, cpu,
+    };
+  }
+
+  // ---- co-op campaign ------------------------------------------------------------
+  function nextStage() {
+    const cp = game.campaign;
+    const st = RR.Campaign.stage(cp.stage);
+    const absent = players.filter((p) => !p.controller).map((p) => p.index);
+    const w = new RR.World(st.def, Object.assign(worldOpts(), {
+      campaign: true, enemies: st.enemies, spawns: st.spawns, absent, cpu: {},
+    }));
+    w.frozen = true;
+    game.world = w;
+    game.acc = 0;
+    game.mineBlink.clear();
+    renderer.setWorld(w);
+    game.state = 'intro';
+    game.timer = C.ROUND_INTRO + 0.6;
+    game.goShown = false;
+    players.forEach((p) => { p.edge.fire = p.edge.mine = 0; });
+    const foes = st.enemies.map((e) => C.ENEMIES[e.type].name);
+    const counts = {};
+    foes.forEach((n) => { counts[n] = (counts[n] || 0) + 1; });
+    const lineup = Object.entries(counts).map(([n, k]) => (k > 1 ? `${k} ${n}s` : `1 ${n}`)).join(' · ');
+    $('.hud-round').textContent = `Stage ${cp.stage}/${RR.Campaign.count}`;
+    $('.hud-arena').textContent = `${st.def.name} · ${hearts(cp.lives)}`;
+    banner(`Stage ${cp.stage}`, lineup);
+    game.replay.reset();
+    audio.roundStart();
+  }
+
+  function hearts(n) {
+    return n > 0 ? '♥'.repeat(Math.min(n, 9)) : 'last chance';
+  }
+
+  function enemiesLeft() {
+    return game.world.tanks.filter((t) => t.team === 1 && t.alive).length;
+  }
+
+  function resolveStage() {
+    const cp = game.campaign;
+    const cleared = enemiesLeft() === 0 && game.world.tanks.some((t) => t.team === 0 && t.alive);
+    game.state = 'result';
+    game.timer = C.ROUND_RESULT;
+    if (cleared) {
+      cp.cleared = cp.stage;
+      settings.bestStage = Math.max(settings.bestStage, cp.stage);
+      saveSettings();
+      if (cp.stage >= RR.Campaign.count) {
+        game.campaignOver = 'won';
+        banner('Campaign complete!', 'Every tank destroyed', '#2a2230');
+        audio.matchWin();
+        return;
+      }
+      let sub = `On to stage ${cp.stage + 1}`;
+      if (cp.stage % C.CAMPAIGN.BONUS_EVERY === 0) {
+        cp.lives++;
+        sub = 'Extra life! ' + hearts(cp.lives);
+        audio.powerup();
+      }
+      banner('Stage clear!', sub, '#2a2230');
+      audio.roundWin();
+      players.forEach((p, i) => rumble(i, 160, 0.6));
+      cp.stage++;
+    } else {
+      cp.lives--;
+      if (cp.lives < 0) {
+        game.campaignOver = 'lost';
+        banner('Game over', `You reached stage ${cp.stage}`, '#2a2230');
+        audio.roundDraw();
+        return;
+      }
+      banner('Tank down!', `Try stage ${cp.stage} again · ${hearts(cp.lives)}`, '#2a2230');
+      audio.roundDraw();
+    }
+  }
+
+  function finishCampaign() {
+    game.state = 'over';
+    hideBanner();
+    const cp = game.campaign;
+    const won = game.campaignOver === 'won';
+    const panel = $('#screen-results .results');
+    $('.winner', panel).textContent = won ? 'Campaign complete!' : 'Game over';
+    $('.winner', panel).style.color = won ? '#b07e10' : '#2a2230';
+    $('.final-score', panel).textContent = won ? `All ${RR.Campaign.count} stages cleared` : `Stages cleared: ${cp.cleared} of ${RR.Campaign.count}`;
+    const team = players.filter((p) => p.controller);
+    const rows = [
+      ['Tanks destroyed', (p) => p.stats.hits],
+      ['Shells fired', (p) => p.stats.shots],
+      ['Ricochets', (p) => p.stats.bounces],
+      ['Trick shots', (p) => p.stats.trick],
+      ['Power-ups', (p) => p.stats.powerups],
+      ['Times knocked out', (p) => p.stats.deaths],
+    ];
+    const head = `<thead><tr><th></th>${team.map((p) => `<th style="color:${colorOf(p.index).dark}">${escapeHtml(p.name)}</th>`).join('')}</tr></thead>`;
+    const body = rows.map(([label, f]) => `<tr><th>${label}</th>${team.map((p) => `<td>${f(p)}</td>`).join('')}</tr>`).join('');
+    $('.stats', panel).innerHTML = head + '<tbody>' + body + '</tbody>';
+    show('#screen-results', true);
+    game.resultsAt = performance.now();
+    if (won) audio.matchWin();
+    players.forEach((p, i) => rumble(i, 400, 0.8));
   }
 
   function pickArena() {
@@ -689,11 +838,16 @@
   }
 
   function nextRound() {
+    if (game.campaign) {
+      game.campaignOver = null;
+      nextStage();
+      return;
+    }
     game.round++;
     const idx = pickArena();
     game.lastArena = idx;
     const def = RR.ARENA_DEFS[idx];
-    const w = new RR.World(def, { ammo: ammo(), minesEnabled: settings.mines, effects: settings.effects, colors: [colorOf(0), colorOf(1)] });
+    const w = new RR.World(def, worldOpts());
     w.frozen = true;
     game.world = w;
     game.acc = 0;
@@ -712,6 +866,10 @@
   }
 
   function resolveRound() {
+    if (game.campaign) {
+      resolveStage();
+      return;
+    }
     const alive = game.world.aliveTanks();
     let winner = null;
     if (alive.length === 1) {
@@ -802,12 +960,25 @@
       switch (ev.type) {
         case 'fire':
           audio.fire();
-          players[ev.player].stats.shots++;
+          if (players[ev.player]) players[ev.player].stats.shots++;
           rumble(ev.player, 30, 0.35);
           break;
         case 'bounce':
           audio.bounce();
-          players[ev.owner].stats.bounces++;
+          if (players[ev.owner]) players[ev.owner].stats.bounces++;
+          break;
+        case 'powerup': {
+          const d = C.POWERUPS[ev.kind];
+          audio.powerup();
+          if (players[ev.player]) players[ev.player].stats.powerups++;
+          rumble(ev.player, 90, 0.6);
+          renderer.callout(d.name.toUpperCase() + '!', ev.x, ev.y, d.color, false);
+          break;
+        }
+        case 'shieldPop':
+          audio.shieldPop();
+          rumble(ev.player, 200, 0.9);
+          renderer.callout('BLOCKED!', ev.x, ev.y, C.POWERUPS.shield.color, false);
           break;
         case 'shellGone':
           if (ev.reason === 'wall' || ev.reason === 'shell') audio.puff();
@@ -835,7 +1006,7 @@
           break;
         case 'mineLay':
           audio.mineLay();
-          players[ev.player].stats.mines++;
+          if (players[ev.player]) players[ev.player].stats.mines++;
           rumble(ev.player, 45, 0.5);
           break;
         case 'mineTrigger':
@@ -852,9 +1023,9 @@
           break;
         case 'tankDestroyed':
           audio.explosion(false);
-          players[ev.player].stats.deaths++;
-          if (ev.by === ev.player) players[ev.player].stats.selfKills++;
-          else if (ev.by != null) players[ev.by].stats.hits++;
+          if (players[ev.player]) players[ev.player].stats.deaths++;
+          if (ev.by === ev.player) { if (players[ev.player]) players[ev.player].stats.selfKills++; }
+          else if (ev.by != null && players[ev.by] && w.tanks[ev.player].team !== w.tanks[ev.by].team) players[ev.by].stats.hits++;
           rumble(ev.player, 450, 1);
           if (ev.by != null && ev.by !== ev.player) rumble(ev.by, 120, 0.7);
           calloutFor(ev, true);
@@ -873,9 +1044,12 @@
         color = '#ffffff';
       }
     } else if (ev.type === 'tankDestroyed') {
-      const shooter = ev.by != null ? colorOf(ev.by).light : '#ffcd45';
+      const wt = game.world && game.world.tanks;
+      const shooter = ev.by != null && wt && wt[ev.by] ? wt[ev.by].color.light : '#ffcd45';
+      const friendly = wt && ev.by != null && ev.by !== ev.player && wt[ev.by] && wt[ev.player] && wt[ev.by].team === wt[ev.player].team;
       if (ev.cause === 'eruption') { text = 'ROASTED!'; color = '#ff8a3a'; }
       else if (ev.by === ev.player) { text = 'OWN GOAL!'; color = '#ff7b5c'; }
+      else if (friendly) { text = 'FRIENDLY FIRE!'; color = '#ff7b5c'; }
       else if (ev.cause === 'mine') { text = 'KABOOM!'; color = shooter; }
       else if (ev.cause === 'shell') {
         if (ev.bent > 0.35) { text = 'GRAVITY ASSIST!'; color = '#c9b0ff'; big = true; trick = true; }
@@ -883,7 +1057,7 @@
         else if (ev.bounces === 2) { text = 'TRICK SHOT!'; color = shooter; big = true; trick = true; }
         else if (ev.bounces === 1) { text = 'BANK SHOT!'; color = shooter; trick = true; }
       }
-      if (count && trick && ev.by != null) players[ev.by].stats.trick++;
+      if (count && trick && ev.by != null && players[ev.by]) players[ev.by].stats.trick++;
     }
     if (!text) return;
     renderer.callout(text, ev.x, ev.y, color, big);
@@ -895,7 +1069,8 @@
   // ---------------------------------------------------------------------------
   function startReplayOrResolve() {
     const r = game.replay;
-    const kill = settings.replay ? r.lastKill() : null;
+    const failed = game.campaign && enemiesLeft() > 0;
+    const kill = settings.replay && !failed ? r.lastKill() : null;
     const proxy = kill && r.start(game.world, kill.time - C.REPLAY_BEFORE, kill.time + C.REPLAY_AFTER);
     if (!proxy) {
       resolveRound();
@@ -1060,7 +1235,7 @@
           game.goShown = false;
           hideBanner();
         }
-        if (w.aliveTanks().length < 2) {
+        if (w.aliveTeams().size < 2) {
           game.state = 'grace';
           game.timer = C.ROUND_GRACE;
           hideBanner();
@@ -1071,7 +1246,8 @@
         break;
       case 'result':
         if (game.timer <= 0) {
-          if (game.matchWinner != null) finishMatch();
+          if (game.campaign && game.campaignOver) finishCampaign();
+          else if (!game.campaign && game.matchWinner != null) finishMatch();
           else nextRound();
         }
         break;
@@ -1096,19 +1272,35 @@
   function updateHud() {
     if (!inMatch() && game.state !== 'over') return;
     const w = game.world;
+    if (game.campaign && w) {
+      const txt = `${w.arena.name} · ${hearts(game.campaign.lives)} · ${enemiesLeft()} left`;
+      const el = $('.hud-arena');
+      if (el.textContent !== txt) el.textContent = txt;
+    }
     players.forEach((p, i) => {
       const shells = w.shellsLeft(i);
       const mines = w.minesLeft(i);
       const ok = !!(p.controller && p.controller.connected);
-      const key = [p.name, p.wins, settings.wins, shells, mines, ok, w.ammo.max, w.minesEnabled].join('|');
+      const t = w.tanks[i];
+      const maxShells = t ? t.maxShells() : w.ammo.max;
+      const kills = p.stats ? p.stats.hits : 0;
+      const cpu = !!(p.controller && p.controller.kind === 'cpu');
+      const powers = t ? ['shield', 'boost', 'spread', 'bouncy', 'rapid'].filter((k) => (k === 'shield' ? t.shield : t[k] > 0)) : [];
+      const absent = !!(t && t.absent);
+      const key = [p.name, p.wins, settings.wins, shells, mines, ok, maxShells, w.minesEnabled, kills, !!game.campaign, powers.join(), absent].join('|');
       if (key === hudCache[i]) return;
       hudCache[i] = key;
       const el = $(`.hud-player[data-player="${i}"]`);
-      $('.hud-name', el).textContent = p.name;
-      $('.hud-wins', el).innerHTML = Array.from({ length: settings.wins }, (_, k) => `<i class="${k < p.wins ? 'on' : ''}"></i>`).join('');
-      $('.hud-shells', el).innerHTML = Array.from({ length: w.ammo.max }, (_, k) => `<i class="${k < shells ? '' : 'used'}"></i>`).join('');
+      el.classList.toggle('absent', absent);
+      $('.hud-name', el).textContent = cpu ? 'Computer' : p.name;
+      $('.hud-wins', el).innerHTML = game.campaign
+        ? `<b class="hud-kills">${kills} <small>tank${kills === 1 ? '' : 's'}</small></b>`
+        : Array.from({ length: settings.wins }, (_, k) => `<i class="${k < p.wins ? 'on' : ''}"></i>`).join('');
+      const PU = { shield: 'shield', boost: 'speed', spread: 'spread', bouncy: 'bouncy', rapid: 'rapid' };
+      $('.hud-shells', el).innerHTML = Array.from({ length: maxShells }, (_, k) => `<i class="${k < shells ? '' : 'used'}"></i>`).join('')
+        + powers.map((k) => `<em class="pu" style="--pu:${C.POWERUPS[PU[k]].color}" title="${C.POWERUPS[PU[k]].name}"></em>`).join('');
       $('.hud-mines', el).innerHTML = w.minesEnabled ? Array.from({ length: C.MINE_MAX }, (_, k) => `<i class="${k < mines ? '' : 'used'}"></i>`).join('') : '';
-      $('.hud-link', el).classList.toggle('lost', !ok);
+      $('.hud-link', el).classList.toggle('lost', !ok && !cpu);
     });
   }
 
@@ -1224,5 +1416,5 @@
   requestAnimationFrame(frame);
 
   // Exposed for debugging and automated tests.
-  RR.game = { game, players, settings, renderer, audio, startMatch, goLobby, assignController, togglePause };
+  RR.game = { game, players, settings, renderer, audio, startMatch, goLobby, assignController, togglePause, chooseController, refreshLobby, nextRound };
 })();
