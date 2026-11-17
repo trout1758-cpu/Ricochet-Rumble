@@ -78,15 +78,17 @@
         </div>
         <div class="ctrl">
           <div class="ctrl-status"><span class="ctrl-icon"></span><div><div class="ctrl-name">No controller</div><div class="ctrl-detail">Pick one below</div></div></div>
-          <div class="ctrl-buttons">
-            <button class="btn small wide" data-src="wifi">Phone · scan QR code</button>
-            <button class="btn small" data-src="phone">Android app</button>
-            <button class="btn small" data-src="wiimote">Wii Remote</button>
-            <button class="btn small" data-src="gamepad">Gamepad</button>
-            <button class="btn small" data-src="kbm">Keys + mouse</button>
-            <button class="btn small" data-src="arrows">Arrow keys</button>
-          </div>
-          <button class="btn small ghost ctrl-remove hidden">Remove controller</button>
+          <label class="ctrl-pick"><span>Controller</span>
+            <select class="ctrl-select" aria-label="Controller">
+              <option value="none">No controller</option>
+              <option value="wifi">Phone · scan QR code (Wi-Fi)</option>
+              <option value="phone">Android app (Bluetooth)</option>
+              <option value="wiimote">Wii Remote + Nunchuk</option>
+              <option value="gamepad">Gamepad</option>
+              <option value="kbm">Keyboard + mouse</option>
+              <option value="arrows">Arrow keys</option>
+            </select>
+          </label>
         </div>
         <button class="btn ready-btn" disabled>Ready</button>
       </div>
@@ -161,16 +163,18 @@
         </div>
         <div class="ctrl">
           <div class="ctrl-status"><span class="ctrl-icon"></span><div><div class="ctrl-name">No controller</div><div class="ctrl-detail">Pick one below</div></div></div>
-          <div class="ctrl-buttons">
-            <button class="btn small wide" data-src="wifi">Phone · scan QR code</button>
-            <button class="btn small" data-src="phone">Android app</button>
-            <button class="btn small" data-src="wiimote">Wii Remote</button>
-            <button class="btn small cpu-btn" data-src="cpu">Computer</button>
-            <button class="btn small" data-src="gamepad">Gamepad</button>
-            <button class="btn small" data-src="kbm">Keys + mouse</button>
-            <button class="btn small" data-src="arrows">Arrow keys</button>
-          </div>
-          <button class="btn small ghost ctrl-remove hidden">Remove controller</button>
+          <label class="ctrl-pick"><span>Controller</span>
+            <select class="ctrl-select" aria-label="Controller">
+              <option value="none">No controller</option>
+              <option value="wifi">Phone · scan QR code (Wi-Fi)</option>
+              <option value="phone">Android app (Bluetooth)</option>
+              <option value="wiimote">Wii Remote + Nunchuk</option>
+              <option value="gamepad">Gamepad</option>
+              <option value="kbm">Keyboard + mouse</option>
+              <option value="arrows">Arrow keys</option>
+              <option value="cpu">Computer</option>
+            </select>
+          </label>
         </div>
         <button class="btn ready-btn" disabled>Ready</button>
       </div>
@@ -216,7 +220,7 @@
         <div>
           <h3>Modes &amp; power-ups</h3>
           <ul>
-            <li><b>Duel:</b> first to win the set number of rounds. Click <b>Computer</b> on Player 2 to play the CPU.</li>
+            <li><b>Duel:</b> first to win the set number of rounds. Pick <b>Computer</b> as Player 2's controller to play the CPU.</li>
             <li><b>Co-op campaign:</b> 1–2 players vs 20 stages of CPU tanks, 3 shared lives (+1 every 5 stages). Friendly fire is on!</li>
             <li><b>Survival:</b> endless, growing waves in one arena. Knocked-out players respawn while the team has lives.</li>
             <li><b>Power-ups:</b> shield (blocks a hit), turbo, triple shot, super bounce, rapid fire. Drive over them.</li>
@@ -245,7 +249,7 @@
           </ul>
           <h3>Wii Remote + Nunchuk</h3>
           <ul>
-            <li>Pair the Wii Remote in your computer's Bluetooth settings (red sync button), then click <b>Wii Remote</b> on a player card.</li>
+            <li>Pair the Wii Remote in your computer's Bluetooth settings (red sync button), then pick <b>Wii Remote</b> in a player card's controller menu.</li>
             <li><b>Nunchuk stick:</b> drive. <b>Point at the screen:</b> aim (needs a sensor bar — without one, tilt the remote to aim).</li>
             <li><b>B</b> or <b>Z</b> fire, <b>A</b> or <b>C</b> mine, <b>+</b> pause. In menus, point and press <b>A</b> to click.</li>
           </ul>

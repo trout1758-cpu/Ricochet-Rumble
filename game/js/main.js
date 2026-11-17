@@ -360,17 +360,19 @@
         colors.appendChild(b);
       });
 
-      $$('.ctrl-buttons button', card).forEach((b) => {
-        b.addEventListener('click', () => {
-          audio.unlock();
-          audio.click();
-          b.blur();
-          chooseController(i, b.dataset.src);
-        });
-      });
-      $('.ctrl-remove', card).addEventListener('click', (e) => {
-        e.currentTarget.blur();
-        removeController(i);
+      const sel = $('.ctrl-select', card);
+      sel.addEventListener('change', () => {
+        audio.unlock();
+        audio.click();
+        sel.blur();
+        if (sel.value === 'none') {
+          if (game.qrWait && game.qrWait.player === i) game.qrWait = null;
+          if (game.gamepadWait && game.gamepadWait.player === i) game.gamepadWait = null;
+          removeController(i);
+          refreshLobby();
+        } else {
+          chooseController(i, sel.value);
+        }
       });
       $('.ready-btn', card).addEventListener('click', (e) => {
         e.currentTarget.blur();
@@ -529,7 +531,11 @@
         detail.textContent = 'Pick one below';
       }
       refreshQr(i, card);
-      $('.ctrl-remove', card).classList.toggle('hidden', !ctl);
+      const sel = $('.ctrl-select', card);
+      const showing = game.qrWait && game.qrWait.player === i ? 'wifi'
+        : game.gamepadWait && game.gamepadWait.player === i ? 'gamepad'
+          : ctl ? ctl.kind : 'none';
+      if (document.activeElement !== sel) sel.value = showing;
       const rb = $('.ready-btn', card);
       rb.disabled = !ctl;
       rb.classList.toggle('is-ready', p.ready);
@@ -543,7 +549,7 @@
     else if (game.lobbyCountdown > 0) hint = `Starting in ${Math.ceil(game.lobbyCountdown)}…`;
     else hint = coop && players.filter((p) => p.controller).length === 1 ? 'Solo run! Press fire, or click Start.' : 'Press fire on every controller, or click Start.';
     $('#start-hint').textContent = hint;
-    $$('[data-src="cpu"]').forEach((b) => b.classList.toggle('hidden', coop));
+    $$('.ctrl-select option[value="cpu"]').forEach((o) => { o.hidden = coop; o.disabled = coop; });
   }
 
   // The computer opponent (duels only): the world drives this tank itself.

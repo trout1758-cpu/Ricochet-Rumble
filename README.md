@@ -20,7 +20,7 @@ Either player can also use a **Wii Remote + Nunchuk** (classic Wii Play controls
 
 ### Game modes
 
-- **Duel:** head to head, first to 3, 5 or 7 rounds. No second player? Click **Computer** on Player 2's card to play against a CPU tank that banks shots off walls and lays mines.
+- **Duel:** head to head, first to 3, 5 or 7 rounds. No second player? Pick **Computer** in Player 2's **Controller** menu to play against a CPU tank that banks shots off walls and lays mines.
 - **Survival:** endless waves; see below.
 - **Co-op campaign:** one or two players team up against **20 stages** of CPU tanks.
   Clear every enemy tank to move on. You share 3 lives and get an extra life every 5 stages.
@@ -183,7 +183,7 @@ It also shows the score, your remaining shells and mines, and the game state.
 | Arrow keys | arrows | `,` `.` rotate turret | `/` / `Enter` | `Right Shift` / `'` | `Esc` |
 | Gamepad | left stick | right stick | RT / RB / A | LT / LB / B | Start |
 
-To use a gamepad, click **Gamepad** on a player card and press any button on the pad.
+To use a gamepad, pick **Gamepad** in a player card's **Controller** menu and press any button on the pad.
 
 ### Wii Remote + Nunchuk
 
@@ -199,7 +199,7 @@ The classic Wii Play Tanks controls:
      Pick **Nintendo RVL-CNT-01**. If it asks for a PIN, leave it blank / skip.
    - Plug the Nunchuk in before or after; either works.
 2. Open the game with the start script, in **Chrome** or **Edge**.
-3. Click **Wii Remote** on a player card and pick the remote in the list. Its player light comes on.
+3. Pick **Wii Remote + Nunchuk** in a player card's **Controller** menu and choose the remote in the list. Its player light comes on.
 4. In menus, the Wii Remote is a pointer: aim at a button and press **A** to click it.
 
 **Aiming needs a sensor bar** in front of or on top of the screen (a Wii's own bar needs the Wii switched on; USB sensor bars work too).

@@ -544,3 +544,6 @@ body.letterbox #letterbox-bars i { height: 7vh; }
 .hats button[aria-checked="true"] { box-shadow: 0 0 0 3px var(--ink); background: #fff; }
 .hats button:disabled { opacity: 0.55; cursor: help; }
 .mode-seg button { font-size: 15px; padding: 8px 6px; }
+.ctrl-pick { display: flex; flex-direction: column; gap: 4px; font: 700 13px system-ui, sans-serif; color: var(--soft, #7a6a62); }
+.ctrl-select { width: 100%; font: 700 15px system-ui, sans-serif; padding: 8px 10px; border-radius: 10px; border: 2px solid var(--edge, #e2d3ba); background: #fff; color: var(--ink); cursor: pointer; }
+.ctrl-select:focus-visible { outline: 2px solid var(--ink); }
