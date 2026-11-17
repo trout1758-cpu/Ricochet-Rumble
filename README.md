@@ -16,7 +16,7 @@ The project has two parts:
 | **Wi-Fi controller** | A web page the computer serves to phones on the same network. Works on iPhones and Android phones with nothing to install. | [`game/pad/`](game/pad) |
 | **Ricochet Pad** | Android app that connects over Bluetooth instead, for when there's no usable Wi-Fi. | [`controller-android/`](controller-android) |
 
-Either player can also use a keyboard and mouse, the arrow keys, or a USB/Bluetooth gamepad.
+Either player can also use a **Wii Remote + Nunchuk** (classic Wii Play controls), a keyboard and mouse, the arrow keys, or a USB/Bluetooth gamepad.
 
 ---
 
@@ -127,6 +127,30 @@ It also shows the score, your remaining shells and mines, and the game state.
 | Gamepad | left stick | right stick | RT / RB / A | LT / LB / B | Start |
 
 To use a gamepad, click **Gamepad** on a player card and press any button on the pad.
+
+### Wii Remote + Nunchuk
+
+The classic Wii Play Tanks controls:
+
+| Drive | Aim | Fire | Mine | Pause |
+| --- | --- | --- | --- | --- |
+| Nunchuk stick | point the Wii Remote at the screen | B (trigger) or Z | A or C | + or Home |
+
+1. **Pair each Wii Remote with the computer once.**
+   - **Windows:** Settings → Bluetooth & devices → Add device → Bluetooth.
+     Press the red **sync** button inside the battery cover (or hold **1 + 2**).
+     Pick **Nintendo RVL-CNT-01**. If it asks for a PIN, leave it blank / skip.
+   - Plug the Nunchuk in before or after; either works.
+2. Open the game with the start script, in **Chrome** or **Edge**.
+3. Click **Wii Remote** on a player card and pick the remote in the list. Its player light comes on.
+4. In menus, the Wii Remote is a pointer: aim at a button and press **A** to click it.
+
+**Aiming needs a sensor bar** in front of or on top of the screen (a Wii's own bar needs the Wii switched on; USB sensor bars work too).
+Without one, the remote falls back to **tilt aiming**: tip it forwards/back and twist it left/right to swing the turret.
+If the crosshair moves the wrong way, press **1** to flip it up/down or **2** to flip it left/right (remembered for next time).
+Without a Nunchuk, the D-pad drives.
+
+If a Wii Remote turns itself off, press any button on it to reconnect (on Windows you may need to press sync again).
 
 ---
 
@@ -272,6 +296,7 @@ game/                      Desktop game (plain HTML/CSS/JS, no build step)
   js/render.js             Canvas renderer, particles, decals
   js/audio.js              Synthesised sound effects and music
   js/input.js              Keyboard, mouse and gamepad
+  js/wiimote.js            Wii Remotes + Nunchuk over WebHID (IR pointer, tilt fallback, rumble)
   js/ble.js                Android app over Web Bluetooth
   js/wifi.js               Phone controllers over Wi-Fi (WebSocket via the launcher)
   js/vendor/qrcode.js      QR code generator (Kazuhiko Arase, MIT licence)

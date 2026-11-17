@@ -38,6 +38,9 @@ window.RR = window.RR || {};
       });
       canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     },
+    screenToWorld(x, y) {
+      return renderer ? renderer.screenToWorld(x, y) : { x: 0, y: 0 };
+    },
     mouseWorld() {
       return renderer ? renderer.screenToWorld(mouse.x, mouse.y) : { x: 0, y: 0 };
     },

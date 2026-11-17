@@ -11,7 +11,7 @@ const root = path.join(__dirname, '..', 'js');
 const sandbox = { console, Math, TextEncoder, TextDecoder, performance: { now: () => Date.now() } };
 sandbox.window = sandbox;
 vm.createContext(sandbox);
-for (const f of ['config.js', 'util.js', 'protocol.js', 'arenas.js', 'world.js']) {
+for (const f of ['config.js', 'util.js', 'protocol.js', 'arenas.js', 'world.js', 'wiimote.js']) {
   vm.runInContext(fs.readFileSync(path.join(root, f), 'utf8'), sandbox, { filename: f });
 }
 const RR = sandbox.RR;
@@ -395,5 +395,62 @@ test('profile packets: decoded, and never mistaken for stick input', () => {
   assert(new TextDecoder().decode(P.nameBytes('éééééééééé', 15)) === 'ééééééé', 'no half characters');
 });
 
+
+console.log('Wii Remote');
+{
+  const W = RR.WiimoteParse;
+  // buttons B + A + Plus, accel flat, IR dots at (400,380) and (624,380), Nunchuk pushed right with Z held
+  const d = new Uint8Array(21);
+  d[0] = 0x10; d[1] = 0x04 | 0x08;
+  d[2] = 128; d[3] = 128; d[4] = 154;
+  const putPair = (o, x1, y1, x2, y2) => {
+    d[o] = x1 & 0xff; d[o + 1] = y1 & 0xff;
+    d[o + 2] = ((y1 >> 8) << 6) | ((x1 >> 8) << 4) | ((y2 >> 8) << 2) | (x2 >> 8);
+    d[o + 3] = x2 & 0xff; d[o + 4] = y2 & 0xff;
+  };
+  putPair(5, 400, 380, 624, 380);
+  d.fill(0xff, 10, 15);
+  d[15] = 224; d[16] = 128; d[17] = 128; d[18] = 128; d[19] = 128; d[20] = 0x02; // Z pressed (bit 0 clear), C released
+  const r = W.parseReport37(d);
+  test('wiimote: buttons decode', () => {
+    if (!(r.buttons & W.BTN.B) || !(r.buttons & W.BTN.A) || !(r.buttons & W.BTN.PLUS) || (r.buttons & W.BTN.HOME)) throw new Error('buttons ' + r.buttons.toString(16));
+  });
+  test('wiimote: accelerometer reads 1 g down the Z axis when flat', () => {
+    if (Math.abs(r.accel.z - 1) > 0.05 || Math.abs(r.accel.x) > 0.05) throw new Error(JSON.stringify(r.accel));
+  });
+  test('wiimote: two IR dots, the empty pair ignored', () => {
+    if (r.ir.length !== 2 || r.ir[0].x !== 400 || r.ir[1].x !== 624 || r.ir[0].y !== 380) throw new Error(JSON.stringify(r.ir));
+  });
+  test('wiimote: nunchuk stick and buttons', () => {
+    if (!r.nunchuk || r.nunchuk.x < 0.9 || Math.abs(r.nunchuk.y) > 0.05 || !r.nunchuk.z || r.nunchuk.c) throw new Error(JSON.stringify(r.nunchuk));
+  });
+  test('wiimote: high bits of IR coordinates', () => {
+    const f = new Uint8Array(21);
+    const o = 5, x1 = 1000, y1 = 700, x2 = 300, y2 = 520;
+    f[o] = x1 & 0xff; f[o + 1] = y1 & 0xff; f[o + 2] = ((y1 >> 8) << 6) | ((x1 >> 8) << 4) | ((y2 >> 8) << 2) | (x2 >> 8); f[o + 3] = x2 & 0xff; f[o + 4] = y2 & 0xff;
+    f.fill(0xff, 10, 15);
+    const ir = W.parseReport37(f).ir;
+    if (ir[0].x !== 1000 || ir[0].y !== 700 || ir[1].x !== 300 || ir[1].y !== 520) throw new Error(JSON.stringify(ir));
+  });
+  test('wiimote: pointer is centred when the bar is centred, and mirrors the camera', () => {
+    const st = {};
+    const c = W.irToPointer([{ x: 400, y: 384 }, { x: 624, y: 384 }], st, false, false);
+    if (Math.abs(c.x - 0.5) > 1e-6 || Math.abs(c.y - 0.5) > 1e-6) throw new Error(JSON.stringify(c));
+    const right = W.irToPointer([{ x: 300, y: 384 }, { x: 524, y: 384 }], {}, false, false);
+    if (!(right.x > 0.5)) throw new Error('bar moving left in the camera should move the pointer right');
+  });
+  test('wiimote: twisting the remote does not move the pointer', () => {
+    const a = 0.4, cx = 512, cy = 384, h = 112;
+    const dots = [{ x: cx - h * Math.cos(a), y: cy - h * Math.sin(a) }, { x: cx + h * Math.cos(a), y: cy + h * Math.sin(a) }];
+    const p = W.irToPointer(dots, {}, false, false);
+    if (Math.abs(p.x - 0.5) > 1e-6 || Math.abs(p.y - 0.5) > 1e-6) throw new Error(JSON.stringify(p));
+  });
+  test('wiimote: one dot out of view keeps the pointer steady', () => {
+    const st = {};
+    const both = W.irToPointer([{ x: 450, y: 300 }, { x: 650, y: 300 }], st, false, false);
+    const one = W.irToPointer([{ x: 450, y: 300 }], st, false, false);
+    if (Math.abs(both.x - one.x) > 1e-6 || Math.abs(both.y - one.y) > 1e-6) throw new Error(JSON.stringify({ both, one }));
+  });
+}
 console.log(`\n${passes} passed, ${failures} failed`);
 process.exit(failures ? 1 : 0);

@@ -473,6 +473,20 @@
     } else if (src === 'kbm' || src === 'arrows') {
       if (other.controller && other.controller.kind === src) removeController(1 - i, true);
       assignController(i, src === 'kbm' ? new RR.KeyboardMouseController() : new RR.KeyboardArrowsController());
+    } else if (src === 'wiimote') {
+      const problem = RR.Wiimote.problem();
+      if (problem) {
+        toast(problem, '#ff5a4a', 7000);
+        return;
+      }
+      try {
+        toast('Pick the Wii Remote (“Nintendo RVL-CNT-01”) in the list. Pair it in your computer’s Bluetooth settings first.', colorOf(i).body, 6000);
+        assignController(i, await RR.Wiimote.connect());
+      } catch (err) {
+        if (err && err.name === 'NotFoundError') return; // picker closed
+        console.error(err);
+        toast('Could not use that Wii Remote: ' + (err && err.message ? err.message : err), '#ff5a4a', 6000);
+      }
     } else if (src === 'gamepad') {
       game.gamepadWait = { player: i, until: performance.now() + 12000 };
       if (RR.Input.gamepads().length === 0) toast('Connect a gamepad, then press any of its buttons.', colorOf(i).body);
@@ -507,6 +521,7 @@
     if (ctl.assign) {
       ctl.onchange = () => onPhoneChange(i, ctl);
       ctl.onprofile = (profile) => onPhoneProfile(i, ctl, profile);
+      ctl.onext = () => { if (game.state === 'lobby') refreshLobby(); };
       ctl.assign(i, colorOf(i).rgb);
     }
     ctl.rumble(150, 0.7);
@@ -527,11 +542,12 @@
 
   function onPhoneChange(i, ctl) {
     if (players[i].controller !== ctl) return;
+    const what = ctl.kind === 'wiimote' ? 'Wii Remote' : 'phone';
     if (ctl.connected) {
-      toast(`${players[i].name}: phone reconnected`, colorOf(i).body);
+      toast(`${players[i].name}: ${what} reconnected`, colorOf(i).body);
       audio.connect();
     } else {
-      toast(`${players[i].name}: phone disconnected — trying to reconnect…`, '#ff5a4a', 4500);
+      toast(`${players[i].name}: ${what} disconnected — ${ctl.kind === 'wiimote' ? 'press a button on it to reconnect' : 'trying to reconnect'}…`, '#ff5a4a', 4500);
       audio.disconnect();
       if (inMatch() && !game.paused) togglePause(`${players[i].name}'s controller disconnected.`);
     }
@@ -589,7 +605,8 @@
       else if (inp.aimMode === 'point') {
         const card = $(`.player-card[data-player="${i}"] .tank-preview canvas`);
         const r = card.getBoundingClientRect();
-        pv.turret = Math.atan2(RR.Input.mouse.y - (r.top + r.height / 2), RR.Input.mouse.x - (r.left + r.width / 2));
+        const sx = inp.screenX != null ? inp.screenX : RR.Input.mouse.x, sy = inp.screenY != null ? inp.screenY : RR.Input.mouse.y;
+        pv.turret = Math.atan2(sy - (r.top + r.height / 2), sx - (r.left + r.width / 2));
       }
       if (inp.fire > 0) {
         pv.recoil = 1;
@@ -1163,6 +1180,9 @@
       });
     }
     renderer.render(game.paused ? 0 : dt, view);
+    // Wii Remote pointers act as cursors in menus (A clicks)
+    const menus = game.state === 'lobby' || game.state === 'over' || game.state === 'title' || game.paused;
+    RR.Wiimote.updatePointers(players, inputs, menus, colorOf);
     if (game.paused) refreshReconnectButtons();
     updateHud();
     syncPhones();

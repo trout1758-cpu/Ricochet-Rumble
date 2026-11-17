@@ -522,3 +522,7 @@ select {
 #letterbox-bars i:first-child { top: 0; }
 #letterbox-bars i:last-child { bottom: 0; }
 body.letterbox #letterbox-bars i { height: 7vh; }
+
+/* Wii Remote pointers in menus */
+.wii-cursor { position: fixed; left: 0; top: 0; z-index: 200; pointer-events: none; filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.45)); }
+.wii-cursor b { position: absolute; left: 26px; top: 26px; font: 900 12px system-ui, sans-serif; color: #fff; background: var(--pc, #333); padding: 1px 5px; border-radius: 6px; border: 2px solid #1d1a24; }
