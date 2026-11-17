@@ -19,7 +19,8 @@
   // Settings (remembered between visits)
   // ---------------------------------------------------------------------------
   const DEFAULTS = {
-    mode: 'duel', powerups: true, bestStage: 0,
+    mode: 'duel', powerups: true, bestStage: 0, bestWave: 0,
+    hats: ['none', 'none'], unlocked: ['none'], totals: { powerups: 0, kills: 0 },
     wins: 5, arena: 'rotation', ammo: 'classic', mines: true, music: true, effects: true, replay: true,
     names: ['Player 1', 'Player 2'], colors: [0, 1],
   };
@@ -31,6 +32,9 @@
       return Object.assign({}, DEFAULTS, s, {
         names: Array.isArray(s.names) ? s.names.slice(0, 2) : DEFAULTS.names.slice(),
         colors: Array.isArray(s.colors) ? s.colors.slice(0, 2) : DEFAULTS.colors.slice(),
+        hats: Array.isArray(s.hats) ? s.hats.slice(0, 2) : DEFAULTS.hats.slice(),
+        unlocked: Array.isArray(s.unlocked) ? s.unlocked.slice() : DEFAULTS.unlocked.slice(),
+        totals: Object.assign({}, DEFAULTS.totals, s.totals || {}),
       });
     } catch (e) {
       return JSON.parse(JSON.stringify(DEFAULTS));
@@ -39,6 +43,30 @@
 
   function saveSettings() {
     try { localStorage.setItem('ricochet-rumble', JSON.stringify(settings)); } catch (e) { /* private mode */ }
+  }
+
+  // ---- hats and achievements ------------------------------------------------------
+  function hatOf(i) {
+    const h = settings.hats[i] || 'none';
+    return settings.unlocked.includes(h) ? h : 'none';
+  }
+
+  function unlockHat(id) {
+    if (settings.unlocked.includes(id)) return;
+    settings.unlocked.push(id);
+    saveSettings();
+    const hat = C.HATS.find((h) => h.id === id);
+    if (!hat) return;
+    toast(`🎩 New hat unlocked: ${hat.name}! Pick it in the lobby.`, '#ffcd45', 6000);
+    audio.powerup();
+    if (typeof buildHatPickers === 'function') buildHatPickers();
+  }
+
+  function countTotal(key, n = 1) {
+    settings.totals[key] = (settings.totals[key] || 0) + n;
+    if (settings.totals.powerups >= 25) unlockHat('viking');
+    if (settings.totals.kills >= 100) unlockHat('chef');
+    saveSettings();
   }
 
   // ---------------------------------------------------------------------------
@@ -203,7 +231,47 @@
     refreshLobby();
   }
 
+  function buildHatPickers() {
+    players.forEach((p, i) => {
+      const box = $(`.player-card[data-player="${i}"] .hats`);
+      if (!box) return;
+      box.innerHTML = '';
+      C.HATS.forEach((h) => {
+        const b = document.createElement('button');
+        const unlocked = settings.unlocked.includes(h.id);
+        b.dataset.hat = h.id;
+        b.title = unlocked ? h.name : `${h.name} (locked) · ${h.how}`;
+        b.disabled = !unlocked;
+        b.setAttribute('aria-checked', String(hatOf(i) === h.id));
+        const cv = document.createElement('canvas');
+        cv.width = 40; cv.height = 40;
+        const ctx = cv.getContext('2d');
+        if (h.id === 'none') {
+          ctx.strokeStyle = '#b9aea0'; ctx.lineWidth = 3;
+          ctx.beginPath(); ctx.arc(20, 20, 11, 0, Math.PI * 2); ctx.moveTo(12, 28); ctx.lineTo(28, 12); ctx.stroke();
+        } else if (unlocked) {
+          RR.drawHat(ctx, h.id, 20, 26, 30, 0.3);
+        } else {
+          ctx.fillStyle = '#b9aea0';
+          ctx.font = '700 20px system-ui, sans-serif';
+          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillText('?', 20, 21);
+        }
+        b.appendChild(cv);
+        b.addEventListener('click', () => {
+          settings.hats[i] = h.id;
+          saveSettings();
+          audio.click();
+          b.blur();
+          buildHatPickers();
+        });
+        box.appendChild(b);
+      });
+    });
+  }
+
   function buildLobby() {
+    buildHatPickers();
     // Arena list
     const sel = $('#set-arena');
     sel.innerHTML = '';
@@ -238,7 +306,7 @@
       '#set-mode': (v) => {
         settings.mode = v;
         // the computer opponent is only for duels
-        players.forEach((p, i) => { if (v === 'campaign' && p.controller && p.controller.kind === 'cpu') removeController(i, true); });
+        players.forEach((p, i) => { if (v !== 'duel' && p.controller && p.controller.kind === 'cpu') removeController(i, true); });
       },
       '#set-powerups': (v) => { settings.powerups = v === 'on'; },
       '#set-wins': (v) => { settings.wins = Number(v); },
@@ -403,13 +471,18 @@
 
   function refreshLobby() {
     const campaign = settings.mode === 'campaign';
+    const survival = settings.mode === 'survival';
+    const coop = campaign || survival;
     $$('#set-mode button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === settings.mode)));
     $$('#set-powerups button').forEach((b) => b.setAttribute('aria-pressed', String((b.dataset.v === 'on') === settings.powerups)));
-    $$('.duel-only').forEach((el) => el.classList.toggle('hidden', campaign));
+    $$('.duel-only').forEach((el) => el.classList.toggle('hidden', coop));
+    $$('.no-campaign').forEach((el) => el.classList.toggle('hidden', campaign));
     $$('.campaign-only').forEach((el) => el.classList.toggle('hidden', !campaign));
+    $$('.survival-only').forEach((el) => el.classList.toggle('hidden', !survival));
     $('#campaign-best').textContent = settings.bestStage > 0 ? `Best so far: stage ${settings.bestStage} of ${RR.Campaign.count}.` : '';
-    $('.match-panel h2').textContent = campaign ? 'Co-op campaign' : 'Match setup';
-    $('#btn-start').textContent = campaign ? 'Start campaign' : 'Start match';
+    $('#survival-best').textContent = settings.bestWave > 0 ? `Best so far: wave ${settings.bestWave}.` : '';
+    $('.match-panel h2').textContent = campaign ? 'Co-op campaign' : survival ? 'Survival' : 'Match setup';
+    $('#btn-start').textContent = campaign ? 'Start campaign' : survival ? 'Start survival' : 'Start match';
     $$('#set-wins button').forEach((b) => b.setAttribute('aria-pressed', String(Number(b.dataset.v) === settings.wins)));
     $$('#set-ammo button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === settings.ammo)));
     $$('#set-mines button').forEach((b) => b.setAttribute('aria-pressed', String((b.dataset.v === 'on') === settings.mines)));
@@ -466,11 +539,11 @@
     const ok = canStart();
     $('#btn-start').disabled = !ok;
     let hint;
-    if (!ok) hint = campaign ? 'Give at least one player a controller.' : 'Give both players a controller (or make Player 2 the computer).';
+    if (!ok) hint = coop ? 'Give at least one player a controller.' : 'Give both players a controller (or make Player 2 the computer).';
     else if (game.lobbyCountdown > 0) hint = `Starting in ${Math.ceil(game.lobbyCountdown)}…`;
-    else hint = campaign && players.filter((p) => p.controller).length === 1 ? 'Solo run! Press fire, or click Start.' : 'Press fire on every controller, or click Start.';
+    else hint = coop && players.filter((p) => p.controller).length === 1 ? 'Solo run! Press fire, or click Start.' : 'Press fire on every controller, or click Start.';
     $('#start-hint').textContent = hint;
-    $$('[data-src="cpu"]').forEach((b) => b.classList.toggle('hidden', campaign));
+    $$('[data-src="cpu"]').forEach((b) => b.classList.toggle('hidden', coop));
   }
 
   // The computer opponent (duels only): the world drives this tank itself.
@@ -483,7 +556,7 @@
 
   function canStart() {
     const humans = players.filter((p) => p.controller && p.controller.kind !== 'cpu');
-    if (settings.mode === 'campaign') return humans.length >= 1;
+    if (settings.mode !== 'duel') return humans.length >= 1;
     return players.every((p) => p.controller) && humans.length >= 1;
   }
 
@@ -673,7 +746,7 @@
       ctx.beginPath();
       ctx.ellipse(fake.ox + 6, fake.oy + 10, s * 0.55, s * 0.32, 0, 0, U.TAU);
       ctx.fill();
-      const t = { x: 0, y: 0, angle: p.preview.angle, turret: p.preview.turret, color: colorOf(i), treadPhase: p.preview.treadPhase, recoil: p.preview.recoil };
+      const t = { x: 0, y: 0, angle: p.preview.angle, turret: p.preview.turret, color: colorOf(i), treadPhase: p.preview.treadPhase, recoil: p.preview.recoil, hat: hatOf(i) };
       RR.Renderer.prototype.drawTank.call(fake, ctx, t);
     });
   }
@@ -712,7 +785,10 @@
     game.campaign = settings.mode === 'campaign'
       ? { stage: 1, lives: C.CAMPAIGN.LIVES, cleared: 0, retries: 0 }
       : null;
-    document.body.classList.toggle('campaign', !!game.campaign);
+    game.survival = settings.mode === 'survival'
+      ? { wave: 0, lives: C.SURVIVAL.LIVES, queue: [], respawns: [], spawnT: 0, breakT: 0, bannerT: 0, over: false }
+      : null;
+    document.body.classList.toggle('campaign', !!(game.campaign || game.survival));
     nextRound();
   }
 
@@ -721,7 +797,7 @@
     players.forEach((p, i) => { if (p.controller && p.controller.kind === 'cpu') cpu[i] = 'rival'; });
     return {
       ammo: ammo(), minesEnabled: settings.mines, effects: settings.effects, colors: [colorOf(0), colorOf(1)],
-      powerups: settings.powerups, cpu,
+      powerups: settings.powerups, cpu, hats: [hatOf(0), hatOf(1)],
     };
   }
 
@@ -761,6 +837,117 @@
     return game.world.tanks.filter((t) => t.team === 1 && t.alive).length;
   }
 
+  // ---- survival ------------------------------------------------------------------
+  function startSurvival() {
+    const n = RR.ARENA_DEFS.length;
+    const idx = settings.arena === 'rotation' || settings.arena === 'random' ? Math.floor(Math.random() * n) : U.clamp(Number(settings.arena) | 0, 0, n - 1);
+    const def = RR.ARENA_DEFS[idx];
+    // both players start on the arena's player-1 side
+    const spawns = RR.Campaign.spawnsFor(def);
+    const absent = players.filter((p) => !p.controller).map((p) => p.index);
+    const w = new RR.World(def, Object.assign(worldOpts(), { campaign: true, enemies: [], spawns, absent, cpu: {} }));
+    w.frozen = true;
+    game.world = w;
+    game.acc = 0;
+    game.mineBlink.clear();
+    renderer.setWorld(w);
+    game.state = 'intro';
+    game.timer = C.ROUND_INTRO;
+    game.goShown = false;
+    players.forEach((p) => { p.edge.fire = p.edge.mine = 0; });
+    $('.hud-round').textContent = 'Survival';
+    banner('Survival', `${def.name} · how long can you last?`);
+    game.replay.reset();
+    audio.roundStart();
+  }
+
+  function nextWave() {
+    const sv = game.survival;
+    sv.wave++;
+    sv.queue = RR.Survival.wave(sv.wave);
+    sv.spawnT = 0.6;
+    let sub = `${sv.queue.length} tank${sv.queue.length === 1 ? '' : 's'} incoming`;
+    if (sv.wave > 1 && (sv.wave - 1) % C.SURVIVAL.BONUS_EVERY === 0) {
+      sv.lives++;
+      sub = 'Extra life! · ' + sub;
+      audio.powerup();
+    }
+    if (sv.wave === 5) unlockHat('propeller');
+    if (sv.wave > settings.bestWave) { settings.bestWave = sv.wave; saveSettings(); }
+    banner(`Wave ${sv.wave}`, sub);
+    sv.bannerT = 1.8;
+    audio.roundStart();
+  }
+
+  function updateSurvival(dt) {
+    const sv = game.survival, w = game.world;
+    if (sv.bannerT > 0) { sv.bannerT -= dt; if (sv.bannerT <= 0) hideBanner(); }
+    // knocked-out players come back while there are lives
+    for (const r of sv.respawns) {
+      r.t -= dt;
+      if (r.t <= 0 && w.respawnPlayer(r.i)) { r.done = true; audio.connect(); rumble(r.i, 120, 0.5); }
+    }
+    sv.respawns = sv.respawns.filter((r) => !r.done);
+    // feed in the wave a few at a time
+    sv.spawnT -= dt;
+    const alive = enemiesLeft();
+    if (sv.queue.length && sv.spawnT <= 0 && alive < C.SURVIVAL.MAX_ALIVE) {
+      if (w.spawnEnemy(sv.queue[0])) sv.queue.shift();
+      sv.spawnT = C.SURVIVAL.SPAWN_GAP;
+    }
+    if (!sv.queue.length && alive === 0 && sv.wave > 0) {
+      if (sv.breakT <= 0) {
+        sv.breakT = C.SURVIVAL.WAVE_BREAK;
+        banner(`Wave ${sv.wave} cleared!`, 'Get ready…', '#2a2230');
+        sv.bannerT = C.SURVIVAL.WAVE_BREAK;
+        audio.roundWin();
+      }
+      sv.breakT -= dt;
+      if (sv.breakT <= 0) nextWave();
+    }
+    // nobody left and no lives to come back with
+    const playersAlive = w.tanks.some((t) => t.team === 0 && t.alive);
+    if (!playersAlive && !sv.respawns.length) {
+      sv.over = true;
+      game.state = 'grace';
+      game.timer = C.ROUND_GRACE;
+    }
+  }
+
+  function onSurvivalDeath(i) {
+    const sv = game.survival;
+    if (sv.lives > 0) {
+      sv.lives--;
+      sv.respawns.push({ i, t: C.SURVIVAL.RESPAWN });
+    }
+  }
+
+  function finishSurvival() {
+    game.state = 'over';
+    hideBanner();
+    const sv = game.survival;
+    const panel = $('#screen-results .results');
+    $('.winner', panel).textContent = `Survived to wave ${sv.wave}`;
+    $('.winner', panel).style.color = '#2a2230';
+    $('.final-score', panel).textContent = sv.wave >= settings.bestWave ? 'New best!' : `Best: wave ${settings.bestWave}`;
+    const team = players.filter((p) => p.controller);
+    const rows = [
+      ['Tanks destroyed', (p) => p.stats.hits],
+      ['Shells fired', (p) => p.stats.shots],
+      ['Ricochets', (p) => p.stats.bounces],
+      ['Trick shots', (p) => p.stats.trick],
+      ['Power-ups', (p) => p.stats.powerups],
+      ['Times knocked out', (p) => p.stats.deaths],
+    ];
+    const head = `<thead><tr><th></th>${team.map((p) => `<th style="color:${colorOf(p.index).dark}">${escapeHtml(p.name)}</th>`).join('')}</tr></thead>`;
+    const body = rows.map(([label, f]) => `<tr><th>${label}</th>${team.map((p) => `<td>${f(p)}</td>`).join('')}</tr>`).join('');
+    $('.stats', panel).innerHTML = head + '<tbody>' + body + '</tbody>';
+    show('#screen-results', true);
+    game.resultsAt = performance.now();
+    audio.matchWin();
+    players.forEach((p, i) => rumble(i, 400, 0.8));
+  }
+
   function resolveStage() {
     const cp = game.campaign;
     const cleared = enemiesLeft() === 0 && game.world.tanks.some((t) => t.team === 0 && t.alive);
@@ -768,6 +955,8 @@
     game.timer = C.ROUND_RESULT;
     if (cleared) {
       cp.cleared = cp.stage;
+      if (cp.stage >= 5) unlockHat('cowboy');
+      if (cp.stage >= RR.Campaign.count) unlockHat('crown');
       settings.bestStage = Math.max(settings.bestStage, cp.stage);
       saveSettings();
       if (cp.stage >= RR.Campaign.count) {
@@ -838,6 +1027,10 @@
   }
 
   function nextRound() {
+    if (game.survival) {
+      startSurvival();
+      return;
+    }
     if (game.campaign) {
       game.campaignOver = null;
       nextStage();
@@ -866,6 +1059,13 @@
   }
 
   function resolveRound() {
+    if (game.survival) {
+      game.state = 'result';
+      game.timer = 1.6;
+      banner('Game over', `You reached wave ${game.survival.wave}`, '#2a2230');
+      audio.roundDraw();
+      return;
+    }
     if (game.campaign) {
       resolveStage();
       return;
@@ -893,6 +1093,8 @@
     game.state = 'over';
     hideBanner();
     const w = game.matchWinner;
+    const loser = players[1 - w];
+    if (loser.controller && loser.controller.kind === 'cpu' && players[w].controller && players[w].controller.kind !== 'cpu') unlockHat('tophat');
     const col = colorOf(w);
     const panel = $('#screen-results .results');
     $('.winner', panel).textContent = `${players[w].name} wins!`;
@@ -970,11 +1172,23 @@
         case 'powerup': {
           const d = C.POWERUPS[ev.kind];
           audio.powerup();
-          if (players[ev.player]) players[ev.player].stats.powerups++;
+          if (players[ev.player]) { players[ev.player].stats.powerups++; countTotal('powerups'); }
           rumble(ev.player, 90, 0.6);
           renderer.callout(d.name.toUpperCase() + '!', ev.x, ev.y, d.color, false);
           break;
         }
+        case 'teleport':
+          audio.teleport();
+          break;
+        case 'gates':
+          audio.gate();
+          break;
+        case 'lightning':
+          audio.thunder();
+          break;
+        case 'gust':
+          audio.gust();
+          break;
         case 'shieldPop':
           audio.shieldPop();
           rumble(ev.player, 200, 0.9);
@@ -1025,7 +1239,11 @@
           audio.explosion(false);
           if (players[ev.player]) players[ev.player].stats.deaths++;
           if (ev.by === ev.player) { if (players[ev.player]) players[ev.player].stats.selfKills++; }
-          else if (ev.by != null && players[ev.by] && w.tanks[ev.player].team !== w.tanks[ev.by].team) players[ev.by].stats.hits++;
+          else if (ev.by != null && players[ev.by] && w.tanks[ev.player].team !== w.tanks[ev.by].team) {
+            players[ev.by].stats.hits++;
+            if (w.tanks[ev.player].ai) countTotal('kills');
+          }
+          if (game.survival && ev.player < 2 && game.state === 'play') onSurvivalDeath(ev.player);
           rumble(ev.player, 450, 1);
           if (ev.by != null && ev.by !== ev.player) rumble(ev.by, 120, 0.7);
           calloutFor(ev, true);
@@ -1052,12 +1270,17 @@
       else if (friendly) { text = 'FRIENDLY FIRE!'; color = '#ff7b5c'; }
       else if (ev.cause === 'mine') { text = 'KABOOM!'; color = shooter; }
       else if (ev.cause === 'shell') {
-        if (ev.bent > 0.35) { text = 'GRAVITY ASSIST!'; color = '#c9b0ff'; big = true; trick = true; }
+        if (ev.warped) { text = 'PORTAL SHOT!'; color = '#3be8ff'; big = true; trick = true; }
+        else if (ev.bent > 0.35 && game.world && game.world.mechKey === 'sky') { if (ev.bent > 0.7) { text = 'WIND ASSIST!'; color = '#ffffff'; big = true; trick = true; } }
+        else if (ev.bent > 0.35) { text = 'GRAVITY ASSIST!'; color = '#c9b0ff'; big = true; trick = true; }
         else if (ev.bounces >= 3) { text = 'INCREDIBLE!'; color = shooter; big = true; trick = true; }
         else if (ev.bounces === 2) { text = 'TRICK SHOT!'; color = shooter; big = true; trick = true; }
         else if (ev.bounces === 1) { text = 'BANK SHOT!'; color = shooter; trick = true; }
       }
-      if (count && trick && ev.by != null && players[ev.by]) players[ev.by].stats.trick++;
+      if (count && trick && ev.by != null && players[ev.by]) {
+        players[ev.by].stats.trick++;
+        unlockHat('party');
+      }
     }
     if (!text) return;
     renderer.callout(text, ev.x, ev.y, color, big);
@@ -1069,7 +1292,7 @@
   // ---------------------------------------------------------------------------
   function startReplayOrResolve() {
     const r = game.replay;
-    const failed = game.campaign && enemiesLeft() > 0;
+    const failed = (game.campaign && enemiesLeft() > 0) || !!game.survival;
     const kill = settings.replay && !failed ? r.lastKill() : null;
     const proxy = kill && r.start(game.world, kill.time - C.REPLAY_BEFORE, kill.time + C.REPLAY_AFTER);
     if (!proxy) {
@@ -1235,7 +1458,10 @@
           game.goShown = false;
           hideBanner();
         }
-        if (w.aliveTeams().size < 2) {
+        if (game.survival) {
+          if (game.goShown === false && game.survival.wave === 0) nextWave();
+          updateSurvival(dt);
+        } else if (w.aliveTeams().size < 2) {
           game.state = 'grace';
           game.timer = C.ROUND_GRACE;
           hideBanner();
@@ -1246,7 +1472,8 @@
         break;
       case 'result':
         if (game.timer <= 0) {
-          if (game.campaign && game.campaignOver) finishCampaign();
+          if (game.survival) finishSurvival();
+          else if (game.campaign && game.campaignOver) finishCampaign();
           else if (!game.campaign && game.matchWinner != null) finishMatch();
           else nextRound();
         }
@@ -1272,6 +1499,12 @@
   function updateHud() {
     if (!inMatch() && game.state !== 'over') return;
     const w = game.world;
+    if (game.survival && w) {
+      const sv = game.survival;
+      const txt = `${w.arena.name} · Wave ${sv.wave} · ${hearts(sv.lives)} · ${enemiesLeft() + sv.queue.length} left`;
+      const el = $('.hud-arena');
+      if (el.textContent !== txt) el.textContent = txt;
+    }
     if (game.campaign && w) {
       const txt = `${w.arena.name} · ${hearts(game.campaign.lives)} · ${enemiesLeft()} left`;
       const el = $('.hud-arena');
@@ -1287,13 +1520,14 @@
       const cpu = !!(p.controller && p.controller.kind === 'cpu');
       const powers = t ? ['shield', 'boost', 'spread', 'bouncy', 'rapid'].filter((k) => (k === 'shield' ? t.shield : t[k] > 0)) : [];
       const absent = !!(t && t.absent);
-      const key = [p.name, p.wins, settings.wins, shells, mines, ok, maxShells, w.minesEnabled, kills, !!game.campaign, powers.join(), absent].join('|');
+      const coop = !!(game.campaign || game.survival);
+      const key = [p.name, p.wins, settings.wins, shells, mines, ok, maxShells, w.minesEnabled, kills, coop, powers.join(), absent].join('|');
       if (key === hudCache[i]) return;
       hudCache[i] = key;
       const el = $(`.hud-player[data-player="${i}"]`);
       el.classList.toggle('absent', absent);
       $('.hud-name', el).textContent = cpu ? 'Computer' : p.name;
-      $('.hud-wins', el).innerHTML = game.campaign
+      $('.hud-wins', el).innerHTML = coop
         ? `<b class="hud-kills">${kills} <small>tank${kills === 1 ? '' : 's'}</small></b>`
         : Array.from({ length: settings.wins }, (_, k) => `<i class="${k < p.wins ? 'on' : ''}"></i>`).join('');
       const PU = { shield: 'shield', boost: 'speed', spread: 'spread', bouncy: 'bouncy', rapid: 'rapid' };

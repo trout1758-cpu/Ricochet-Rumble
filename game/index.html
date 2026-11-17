@@ -65,6 +65,7 @@
           <span class="pnum">P1</span>
         </div>
         <div class="colors" role="radiogroup" aria-label="Tank colour"></div>
+        <div class="hats" role="radiogroup" aria-label="Hat"></div>
         <div class="tank-preview"><canvas width="220" height="120"></canvas></div>
         <div class="qr-panel hidden">
           <div class="qr-title">Scan with your phone’s camera</div>
@@ -92,10 +93,14 @@
 
       <div class="match-panel">
         <h2>Match setup</h2>
-        <div class="seg mode-seg" id="set-mode"><button data-v="duel">⚔ Duel</button><button data-v="campaign">★ Co-op campaign</button></div>
+        <div class="seg mode-seg" id="set-mode"><button data-v="duel">⚔ Duel</button><button data-v="campaign">★ Campaign</button><button data-v="survival">∞ Survival</button></div>
         <div class="campaign-only campaign-info hidden">
           <p>Team up (or go solo) against <b>20 stages</b> of CPU tanks. Clear every enemy tank to advance. You share <b>3 lives</b>, with an extra one every 5 stages.</p>
           <p class="campaign-best" id="campaign-best"></p>
+        </div>
+        <div class="survival-only campaign-info hidden">
+          <p>Endless waves of CPU tanks warp into one arena, and each wave is bigger and tougher. Knocked out? You're back in a couple of seconds while the team has <b>lives</b> left (3, plus one every 5 waves).</p>
+          <p class="campaign-best" id="survival-best"></p>
         </div>
         <div class="setting duel-only">
           <label>First to</label>
@@ -103,12 +108,12 @@
             <button data-v="3">3</button><button data-v="5">5</button><button data-v="7">7</button>
           </div>
         </div>
-        <div class="setting duel-only">
+        <div class="setting no-campaign">
           <label for="set-arena">Arena</label>
           <select id="set-arena"></select>
         </div>
-        <canvas id="arena-preview" class="duel-only" width="440" height="268"></canvas>
-        <p class="arena-effect duel-only" id="arena-effect"></p>
+        <canvas id="arena-preview" class="no-campaign" width="440" height="268"></canvas>
+        <p class="arena-effect no-campaign" id="arena-effect"></p>
         <div class="setting">
           <label>Power-ups</label>
           <div class="seg" id="set-powerups"><button data-v="on">On</button><button data-v="off">Off</button></div>
@@ -143,6 +148,7 @@
           <span class="pnum">P2</span>
         </div>
         <div class="colors" role="radiogroup" aria-label="Tank colour"></div>
+        <div class="hats" role="radiogroup" aria-label="Hat"></div>
         <div class="tank-preview"><canvas width="220" height="120"></canvas></div>
         <div class="qr-panel hidden">
           <div class="qr-title">Scan with your phone’s camera</div>
@@ -212,7 +218,9 @@
           <ul>
             <li><b>Duel:</b> first to win the set number of rounds. Click <b>Computer</b> on Player 2 to play the CPU.</li>
             <li><b>Co-op campaign:</b> 1–2 players vs 20 stages of CPU tanks, 3 shared lives (+1 every 5 stages). Friendly fire is on!</li>
+            <li><b>Survival:</b> endless, growing waves in one arena. Knocked-out players respawn while the team has lives.</li>
             <li><b>Power-ups:</b> shield (blocks a hit), turbo, triple shot, super bounce, rapid fire. Drive over them.</li>
+            <li><b>Hats:</b> unlock them with achievements and pick one on your player card.</li>
           </ul>
           <h3>Rules</h3>
           <ul>

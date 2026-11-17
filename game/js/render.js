@@ -211,6 +211,7 @@ window.RR = window.RR || {};
 
     setWorld(world) {
       this.world = world;
+      this.ghostFade = new WeakMap();
       this.decals = [];
       this.fx.clear();
       this.trail.clear();
@@ -951,6 +952,26 @@ window.RR = window.RR || {};
       const w = this.world;
       const rand = Math.random;
       switch (ev.type) {
+        case 'teleport': {
+          const col = ev.tank ? '#ffffff' : '#3be8ff';
+          fx.add({ kind: 'ring', x: ev.x, y: ev.y, r0: 0.1, r1: 0.8, life: 0.3, color: col });
+          fx.add({ kind: 'ring', x: ev.tx, y: ev.ty, r0: 0.8, r1: 0.1, life: 0.3, color: col });
+          break;
+        }
+        case 'lightning':
+          this.lightning = 1.6;
+          break;
+        case 'warpIn': {
+          const t = w.tanks[ev.player];
+          const col = t ? t.color.light : '#ffffff';
+          fx.add({ kind: 'ring', x: ev.x, y: ev.y, r0: 1.4, r1: 0.1, life: 0.45, color: col });
+          fx.add({ kind: 'ring', x: ev.x, y: ev.y, r0: 0.1, r1: 1.0, life: 0.5, color: '#ffffff' });
+          for (let i = 0; i < 12; i++) {
+            const a = (i / 12) * Math.PI * 2;
+            fx.add({ kind: 'spark', x: ev.x + Math.cos(a) * 1.1, y: ev.y + Math.sin(a) * 1.1, vx: -Math.cos(a) * 3, vy: -Math.sin(a) * 3, life: 0.3, drag: 2, color: col });
+          }
+          break;
+        }
         case 'tread':
           this.addDecal({ type: 'tread', x: ev.x, y: ev.y, angle: ev.angle });
           break;
@@ -1014,6 +1035,7 @@ window.RR = window.RR || {};
           break;
         }
         case 'explosion':
+          (this.lights || (this.lights = [])).push({ x: ev.x, y: ev.y, r: ev.r * 1.6, t: 0.6 });
           this.boom(ev.x, ev.y, ev.r, ['#5a5048', '#2f2a26', '#7a6a58']);
           fx.add({ kind: 'ring', x: ev.x, y: ev.y, r0: 0.2, r1: ev.r * 1.05, life: 0.45, color: '#fff3d0' });
           this.addDecal({ type: 'scorch', x: ev.x, y: ev.y, r: ev.r * 0.85, seed: (rand() * 1e6) | 0 });
@@ -1135,6 +1157,7 @@ window.RR = window.RR || {};
           const v = (c * 7 + r * 13 + ((c * r) % 5)) % 4;
           const spr = t === T.WALL ? this.wallSprites[v] : this.crateSprites[v];
           ctx.drawImage(spr, this.ox + c * s, this.oy + r * s - bh);
+          if (t === T.WALL && w.gateSet && w.gateSet.has(r * C.COLS + c)) this.drawGateBars(ctx, c, r);
         }
         for (const tank of w.tanks) {
           if (tank.alive && Math.floor(tank.y) === r) {
@@ -1149,18 +1172,197 @@ window.RR = window.RR || {};
       }
       for (const b of w.bullets) this.drawShell(ctx, b);
       this.drawAirEffects(ctx, w, dt);
+      if (w.wind) this.drawWind(ctx, w);
 
       ctx.drawImage(this.fgLayer, 0, 0);
       this.fx.draw(ctx, this);
+      if (w.mechKey === 'haunted') this.drawDarkness(ctx, w, dt);
       if (view && view.labels) for (const t of w.tanks) if (t.alive) this.drawLabel(ctx, t);
       this.drawStorm(ctx, w, sx, sy);
       this.drawCallouts(ctx, dt);
       ctx.setTransform(1, 0, 0, 1, 0, 0);
     }
 
+    // ---- new arena effects -------------------------------------------------------------
+    drawBelts(ctx, w) {
+      const s = this.s, ox = this.ox, oy = this.oy;
+      const on = w.mechKey === 'factory';
+      const phase = on ? (this.time * C.BELT_SPEED) % 1 : 0;
+      ctx.save();
+      for (let r = 0; r < C.ROWS; r++) {
+        for (let c = 0; c < C.COLS; c++) {
+          const b = w.belts[r * C.COLS + c];
+          if (!b) continue;
+          const X = ox + c * s, Y = oy + r * s;
+          ctx.fillStyle = '#3d4248';
+          ctx.fillRect(X + s * 0.04, Y + s * 0.04, s * 0.92, s * 0.92);
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(X + s * 0.04, Y + s * 0.04, s * 0.92, s * 0.92);
+          ctx.clip();
+          ctx.translate(X + s / 2, Y + s / 2);
+          ctx.rotate([0, 0, Math.PI, Math.PI / 2, -Math.PI / 2][b]);
+          ctx.strokeStyle = '#f2b632';
+          ctx.lineWidth = s * 0.09;
+          ctx.lineCap = 'round';
+          for (let k = -1; k <= 1; k++) {
+            const x = (k + phase) * s * 0.5;
+            ctx.beginPath();
+            ctx.moveTo(x - s * 0.12, -s * 0.22);
+            ctx.lineTo(x + s * 0.06, 0);
+            ctx.lineTo(x - s * 0.12, s * 0.22);
+            ctx.stroke();
+          }
+          ctx.restore();
+        }
+      }
+      ctx.restore();
+    }
+
+    drawPortals(ctx, w) {
+      const s = this.s, ox = this.ox, oy = this.oy;
+      const cols = ['#3be8ff', '#ff5fd2', '#ffd34d', '#7cf27c'];
+      ctx.save();
+      w.portals.forEach((p, i) => {
+        const col = cols[i % cols.length];
+        for (const e of [p.a, p.b]) {
+          const X = ox + e.x * s, Y = oy + e.y * s;
+          const g = ctx.createRadialGradient(X, Y, s * 0.05, X, Y, s * 0.48);
+          g.addColorStop(0, '#ffffff');
+          g.addColorStop(0.35, col);
+          g.addColorStop(1, col + '00');
+          ctx.fillStyle = g;
+          ctx.beginPath();
+          ctx.arc(X, Y, s * 0.48, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = col;
+          ctx.lineWidth = s * 0.05;
+          for (let k = 0; k < 3; k++) {
+            const a = this.time * 3 + (k * Math.PI * 2) / 3;
+            ctx.beginPath();
+            ctx.arc(X, Y, s * (0.24 + k * 0.07), a, a + 1.6);
+            ctx.stroke();
+          }
+        }
+      });
+      ctx.restore();
+    }
+
+    drawGateBars(ctx, c, r) {
+      const s = this.s, X = this.ox + c * s, Y = this.oy + r * s - this.bh;
+      ctx.save();
+      ctx.strokeStyle = '#2b2620';
+      ctx.lineWidth = Math.max(1.5, s * 0.07);
+      for (let k = 1; k < 4; k++) {
+        ctx.beginPath();
+        ctx.moveTo(X + k * s * 0.25, Y + s * 0.1);
+        ctx.lineTo(X + k * s * 0.25, Y + s + this.bh - s * 0.08);
+        ctx.stroke();
+      }
+      ctx.beginPath();
+      ctx.moveTo(X + s * 0.08, Y + s * 0.45);
+      ctx.lineTo(X + s * 0.92, Y + s * 0.45);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    drawWind(ctx, w) {
+      const s = this.s, ox = this.ox, oy = this.oy;
+      const lvl = Math.abs(w.wind);
+      if (lvl < 0.02) return;
+      const dir = Math.sign(w.wind);
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+      ctx.lineCap = 'round';
+      ctx.lineWidth = Math.max(1.5, s * 0.05);
+      ctx.globalAlpha = lvl;
+      const H = C.ROWS * s;
+      for (let i = 0; i < 26; i++) {
+        const x = ox + ((i * 0.61803) % 1) * C.COLS * s;
+        const y0 = ((((i * 0.414) % 1) * H + dir * this.time * s * 7) % H + H) % H;
+        ctx.beginPath();
+        ctx.moveTo(x, oy + y0);
+        ctx.lineTo(x + Math.sin(this.time * 3 + i) * s * 0.1, oy + y0 - dir * s * (0.6 + (i % 3) * 0.3));
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    // Lights out: darkness everywhere except round tanks, along headlights,
+    // round shells, explosions, and briefly everywhere when lightning strikes.
+    drawDarkness(ctx, w, dt) {
+      const s = this.s;
+      if (!this.darkLayer || this.darkLayer.width !== this.W || this.darkLayer.height !== this.H) this.darkLayer = this.makeCanvas(this.W, this.H);
+      this.lightning = Math.max(0, (this.lightning || 0) - dt * 2.2);
+      this.lights = (this.lights || []).filter((l) => (l.t -= dt) > 0);
+      const d = this.darkLayer.getContext('2d');
+      d.globalCompositeOperation = 'source-over';
+      d.clearRect(0, 0, this.W, this.H);
+      d.fillStyle = 'rgba(6,6,18,0.9)';
+      d.fillRect(0, 0, this.W, this.H);
+      d.globalCompositeOperation = 'destination-out';
+      const hole = (x, y, r, a = 1) => {
+        const X = this.ox + x * s, Y = this.oy + y * s;
+        const g = d.createRadialGradient(X, Y, 0, X, Y, r * s);
+        g.addColorStop(0, `rgba(0,0,0,${a})`);
+        g.addColorStop(1, 'rgba(0,0,0,0)');
+        d.fillStyle = g;
+        d.beginPath();
+        d.arc(X, Y, r * s, 0, Math.PI * 2);
+        d.fill();
+      };
+      for (const t of w.tanks) {
+        // everyone has headlights except the CPU tanks you're hunting in co-op
+        if (!t.alive || (w.campaign && t.team === 1)) continue;
+        hole(t.x, t.y, 1.7);
+        // headlight beam along the turret
+        const X = this.ox + t.x * s, Y = this.oy + t.y * s;
+        const L = 6.5 * s;
+        const g = d.createRadialGradient(X, Y, s * 0.3, X, Y, L);
+        g.addColorStop(0, 'rgba(0,0,0,0.95)');
+        g.addColorStop(1, 'rgba(0,0,0,0)');
+        d.fillStyle = g;
+        d.beginPath();
+        d.moveTo(X, Y);
+        d.arc(X, Y, L, t.turret - 0.32, t.turret + 0.32);
+        d.closePath();
+        d.fill();
+      }
+      for (const b of w.bullets) hole(b.x, b.y, 0.7, 0.9);
+      for (const m of w.mines) if (m.armed) hole(m.x, m.y, 0.6, (Math.floor(this.time * 4) % 2) ? 0.6 : 0.2);
+      for (const p of w.powerups || []) hole(p.x, p.y, 0.7, 0.7);
+      for (const l of this.lights) hole(l.x, l.y, l.r, Math.min(1, l.t * 2));
+      d.globalCompositeOperation = 'source-over';
+      ctx.save();
+      ctx.globalAlpha = 1 - Math.min(1, this.lightning);
+      ctx.drawImage(this.darkLayer, 0, 0);
+      ctx.restore();
+      if (this.lightning > 0.6) {
+        ctx.save();
+        ctx.fillStyle = `rgba(220,225,255,${(this.lightning - 0.6) * 0.8})`;
+        ctx.fillRect(0, 0, this.W, this.H);
+        ctx.restore();
+      }
+    }
+
     // ---- theme mechanics --------------------------------------------------------------
     drawFloorEffects(ctx, w) {
       const s = this.s, ox = this.ox, oy = this.oy;
+      if (w.belts) this.drawBelts(ctx, w);
+      if (w.portals && w.portals.length) this.drawPortals(ctx, w);
+      if (w.gateSet && w.gateSet.size) {
+        // tracks where open gates slide
+        ctx.save();
+        ctx.fillStyle = 'rgba(40,35,30,0.35)';
+        for (const key of w.gateSet) {
+          const c = key % C.COLS, r = (key / C.COLS) | 0;
+          if (w.grid[key] !== T.FLOOR) continue;
+          ctx.fillRect(ox + c * s + s * 0.08, oy + r * s + s * 0.08, s * 0.84, s * 0.1);
+          ctx.fillRect(ox + c * s + s * 0.08, oy + r * s + s * 0.82, s * 0.84, s * 0.1);
+          for (let k = 1; k < 4; k++) ctx.fillRect(ox + c * s + k * s * 0.25 - s * 0.025, oy + r * s + s * 0.18, s * 0.05, s * 0.64);
+        }
+        ctx.restore();
+      }
       if (w.mechKey === 'beach' && w.tide > 0) {
         // the tide washes over the shallows
         ctx.save();
@@ -1403,6 +1605,14 @@ window.RR = window.RR || {};
       const Y = this.oy + (t.y - TANK_LIFT) * s;
       const col = t.color;
       ctx.save();
+      // Ghost tanks fade almost out of sight while they move
+      if (t.ai && t.ai.ghost && this.ghostFade) {
+        const f = this.ghostFade.get(t) ?? 1;
+        const want = Math.abs(t.speed) > 0.2 ? 0.1 : 1;
+        const nf = f + (want - f) * 0.08;
+        this.ghostFade.set(t, nf);
+        ctx.globalAlpha = nf;
+      }
       ctx.translate(X, Y);
       ctx.rotate(t.angle);
 
@@ -1490,6 +1700,12 @@ window.RR = window.RR || {};
       ctx.arc(-s * 0.07, -s * 0.07, s * 0.04, 0, U.TAU);
       ctx.fill();
       ctx.restore();
+      if (t.hat && t.hat !== 'none') {
+        ctx.save();
+        if (t.ai && t.ai.ghost && this.ghostFade) ctx.globalAlpha = this.ghostFade.get(t) ?? 1;
+        RR.drawHat(ctx, t.hat, X, Y - s * 0.12, s * 0.42, this.time || 0);
+        ctx.restore();
+      }
     }
 
     drawShell(ctx, b) {
@@ -1749,6 +1965,71 @@ window.RR = window.RR || {};
   RR.FX = FX;
 
   // Small arena preview used in the lobby.
+  // Hats, seen from above and a little in front. (x, y) is where the hat sits,
+  // S its rough width in pixels.
+  RR.drawHat = function drawHat(ctx, id, x, y, S, time) {
+    const ink = '#1d1a24';
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.lineWidth = Math.max(1, S * 0.07);
+    ctx.strokeStyle = ink;
+    ctx.lineJoin = 'round';
+    const shape = (fill, draw) => { ctx.fillStyle = fill; ctx.beginPath(); draw(); ctx.fill(); ctx.stroke(); };
+    switch (id) {
+      case 'party':
+        shape('#ff5fa2', () => { ctx.moveTo(-S * 0.38, S * 0.2); ctx.lineTo(0, -S * 0.75); ctx.lineTo(S * 0.38, S * 0.2); ctx.quadraticCurveTo(0, S * 0.36, -S * 0.38, S * 0.2); });
+        ctx.fillStyle = '#ffd34d';
+        for (const [px, py] of [[-0.12, -0.05], [0.12, 0.08], [0.02, -0.38]]) { ctx.beginPath(); ctx.arc(px * S, py * S, S * 0.07, 0, Math.PI * 2); ctx.fill(); }
+        shape('#7fe0ff', () => ctx.arc(0, -S * 0.78, S * 0.13, 0, Math.PI * 2));
+        break;
+      case 'tophat':
+        shape('#2a2630', () => ctx.ellipse(0, S * 0.12, S * 0.52, S * 0.2, 0, 0, Math.PI * 2));
+        shape('#2a2630', () => { ctx.rect(-S * 0.3, -S * 0.62, S * 0.6, S * 0.74); });
+        ctx.fillStyle = '#e8473b';
+        ctx.fillRect(-S * 0.3, -S * 0.04, S * 0.6, S * 0.12);
+        shape('#3b3642', () => ctx.ellipse(0, -S * 0.62, S * 0.3, S * 0.1, 0, 0, Math.PI * 2));
+        break;
+      case 'cowboy':
+        shape('#a8693a', () => { ctx.ellipse(0, S * 0.1, S * 0.62, S * 0.24, 0, 0, Math.PI * 2); });
+        shape('#c27f48', () => { ctx.moveTo(-S * 0.3, S * 0.08); ctx.quadraticCurveTo(-S * 0.32, -S * 0.42, 0, -S * 0.36); ctx.quadraticCurveTo(S * 0.32, -S * 0.42, S * 0.3, S * 0.08); ctx.closePath(); });
+        ctx.fillStyle = '#5a3418';
+        ctx.fillRect(-S * 0.3, -S * 0.02, S * 0.6, S * 0.09);
+        break;
+      case 'propeller': {
+        const segs = ['#e8473b', '#ffd34d', '#2f86c9', '#3fae3a'];
+        segs.forEach((c, k) => shape(c, () => { ctx.moveTo(0, S * 0.12); ctx.arc(0, S * 0.12, S * 0.36, Math.PI + (k * Math.PI) / 4, Math.PI + ((k + 1) * Math.PI) / 4); ctx.closePath(); }));
+        shape('#2f86c9', () => ctx.ellipse(S * 0.3, S * 0.14, S * 0.18, S * 0.07, 0, 0, Math.PI * 2));
+        ctx.fillStyle = ink;
+        ctx.fillRect(-S * 0.03, -S * 0.36, S * 0.06, S * 0.16);
+        const a = time * 14;
+        shape('#ffd34d', () => ctx.ellipse(0, -S * 0.38, S * 0.42 * Math.abs(Math.cos(a)) + S * 0.04, S * 0.07, 0, 0, Math.PI * 2));
+        break;
+      }
+      case 'viking':
+        for (const side of [-1, 1]) shape('#f3ead8', () => { ctx.moveTo(side * S * 0.25, -S * 0.05); ctx.quadraticCurveTo(side * S * 0.62, -S * 0.08, side * S * 0.58, -S * 0.6); ctx.quadraticCurveTo(side * S * 0.42, -S * 0.25, side * S * 0.2, -S * 0.22); ctx.closePath(); });
+        shape('#9aa3ad', () => { ctx.arc(0, S * 0.1, S * 0.34, Math.PI, 0); ctx.closePath(); });
+        ctx.fillStyle = '#c99a3c';
+        ctx.fillRect(-S * 0.34, S * 0.04, S * 0.68, S * 0.09);
+        break;
+      case 'chef':
+        shape('#ffffff', () => { ctx.rect(-S * 0.26, -S * 0.12, S * 0.52, S * 0.28); });
+        shape('#ffffff', () => { ctx.arc(-S * 0.2, -S * 0.25, S * 0.2, 0, Math.PI * 2); });
+        shape('#ffffff', () => { ctx.arc(S * 0.2, -S * 0.25, S * 0.2, 0, Math.PI * 2); });
+        shape('#ffffff', () => { ctx.arc(0, -S * 0.42, S * 0.24, 0, Math.PI * 2); });
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(-S * 0.2, -S * 0.3, S * 0.4, S * 0.3);
+        break;
+      case 'crown':
+        shape('#ffcd30', () => {
+          ctx.moveTo(-S * 0.4, S * 0.16); ctx.lineTo(-S * 0.44, -S * 0.36); ctx.lineTo(-S * 0.2, -S * 0.12); ctx.lineTo(0, -S * 0.5);
+          ctx.lineTo(S * 0.2, -S * 0.12); ctx.lineTo(S * 0.44, -S * 0.36); ctx.lineTo(S * 0.4, S * 0.16); ctx.closePath();
+        });
+        [['#e8473b', 0], ['#2f86c9', -0.22], ['#3fae3a', 0.22]].forEach(([c, px]) => { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(px * S, S * 0.02, S * 0.07, 0, Math.PI * 2); ctx.fill(); });
+        break;
+    }
+    ctx.restore();
+  };
+
   RR.drawArenaPreview = function drawArenaPreview(canvas, def, colors) {
     const a = RR.buildArena(def);
     const th = a.theme;

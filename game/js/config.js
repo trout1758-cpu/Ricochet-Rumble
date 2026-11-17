@@ -52,7 +52,19 @@ RR.CFG = {
     playroom: { name: 'Bouncy blocks', desc: 'Shells bounce one extra time' },
     sandbox:  { name: 'Sandstorms', desc: 'Sandstorms blow through and hide the arena' },
     garden:   { name: 'Regrowth', desc: 'Blasted planters grow back' },
+    factory:  { name: 'Conveyor belts', desc: 'Belts carry tanks along' },
+    arcade:   { name: 'Teleporters', desc: 'Tanks and shells warp between matching pads' },
+    castle:   { name: 'Gates', desc: 'Gates swing open and shut every few seconds' },
+    haunted:  { name: 'Lights out', desc: 'Only headlights, shells and lightning light the way' },
+    sky:      { name: 'Gusts', desc: 'Wind gusts shove tanks and bend shells' },
   },
+  BELT_SPEED: 1.15,
+  PORTAL_R: 0.34,
+  GATE_EVERY: 4.5,
+  LIGHTNING_EVERY: [5, 9],
+  WIND_CYCLE: [6, 1, 3.5, 1],
+  WIND_TANK: 1.3,
+  WIND_SHELL: 5.5,
   ICE_GRIP: 2.0,            // how quickly tanks match the stick on ice (higher = less slide)
   HOLE_RADIUS: 2.8,         // black hole pull range
   HOLE_PULL: 2.4,
@@ -100,6 +112,8 @@ RR.CFG = {
     sapper:    { name: 'Sapper', color: { body: '#55585f', dark: '#2e3035', light: '#8b8f98' }, speed: 0.75, turn: 2.6, ammo: { speed: 4.8, bounces: 1, max: 2 }, bank: 1, every: [1.4, 2.4], aimError: 0.05, mines: 2, dodge: true },
     marksman:  { name: 'Marksman', color: { body: '#e9e6df', dark: '#9e9a90', light: '#ffffff' }, speed: 0, turn: 3.4, ammo: { speed: 8.0, bounces: 1, max: 1 }, bank: 1, every: [1.6, 2.4], aimError: 0.0, mines: 0, dodge: false },
     commander: { name: 'Commander', color: { body: '#d9a21b', dark: '#8f6608', light: '#ffd45e' }, speed: 0.7, turn: 3.0, ammo: { speed: 6.0, bounces: 1, max: 3 }, bank: 1, every: [0.7, 1.2], aimError: 0.03, mines: 1, dodge: true },
+    ghost:     { name: 'Ghost', color: { body: '#9fb4d8', dark: '#5f7398', light: '#dbe6f8' }, speed: 0.65, turn: 2.8, ammo: { speed: 5.0, bounces: 1, max: 2 }, bank: 1, every: [1.2, 2.0], aimError: 0.05, mines: 0, dodge: true, ghost: true },
+    blaster:   { name: 'Blaster', color: { body: '#d64545', dark: '#8e2424', light: '#f39a9a' }, speed: 0.5, turn: 2.4, ammo: { speed: 4.6, bounces: 1, max: 2 }, bank: 0, every: [1.7, 2.7], aimError: 0.06, mines: 0, dodge: false, spread: true },
     // the computer opponent in a duel uses the lobby's ammo
     rival:     { name: 'CPU', color: null, speed: 0.8, turn: 3.2, ammo: null, bank: 1, every: [0.9, 1.6], aimError: 0.04, mines: 2, dodge: true },
   },
@@ -121,17 +135,42 @@ RR.CFG = {
       ['dasher', 'dasher', 'scout'],
       ['marksman', 'bouncer'],
       ['sapper', 'bouncer', 'scout'],
-      ['marksman', 'dasher', 'dasher'],
+      ['marksman', 'ghost', 'dasher'],
       ['bouncer', 'bouncer', 'sapper'],
       ['commander', 'scout', 'scout'],
       ['marksman', 'marksman', 'sapper'],
-      ['dasher', 'dasher', 'bouncer', 'bouncer'],
+      ['dasher', 'blaster', 'bouncer', 'bouncer'],
       ['commander', 'sapper', 'marksman'],
-      ['sapper', 'sapper', 'dasher', 'bouncer'],
+      ['sapper', 'ghost', 'blaster', 'bouncer'],
       ['commander', 'commander', 'marksman'],
       ['commander', 'commander', 'marksman', 'sapper', 'dasher'],
     ],
   },
+
+  // Survival: endless waves in one arena. Lost tanks respawn while the team
+  // has lives left.
+  SURVIVAL: {
+    LIVES: 3,
+    BONUS_EVERY: 5,       // extra life after every 5th wave
+    RESPAWN: 2.5,
+    WAVE_BREAK: 2.5,
+    MAX_ALIVE: 6,
+    SPAWN_GAP: 0.9,
+    // enemy types join the mix from this wave on
+    POOL: { rookie: 1, scout: 1, bouncer: 3, dasher: 4, sapper: 5, ghost: 6, blaster: 7, marksman: 8, commander: 10 },
+  },
+
+  // Hats: cosmetic, unlocked by achievements, picked per player in the lobby.
+  HATS: [
+    { id: 'none', name: 'No hat' },
+    { id: 'party', name: 'Party hat', how: 'Pull off a trick shot' },
+    { id: 'tophat', name: 'Top hat', how: 'Beat the Computer in a duel' },
+    { id: 'cowboy', name: 'Cowboy hat', how: 'Clear campaign stage 5' },
+    { id: 'propeller', name: 'Propeller cap', how: 'Reach wave 5 in Survival' },
+    { id: 'viking', name: 'Viking helmet', how: 'Grab 25 power-ups' },
+    { id: 'chef', name: 'Chef hat', how: 'Destroy 100 CPU tanks' },
+    { id: 'crown', name: 'Crown', how: 'Clear the whole campaign' },
+  ],
 
   PLAYER_COLORS: [
     { name: 'Tomato',  body: '#e8553f', dark: '#a8321f', light: '#ff8a6e', rgb: [232, 85, 63] },

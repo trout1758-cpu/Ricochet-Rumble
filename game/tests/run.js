@@ -528,6 +528,110 @@ console.log('Campaign, CPU tanks, power-ups');
   });
 }
 
+
+console.log('Survival, new enemies');
+{
+  const colors = [C.PLAYER_COLORS[0], C.PLAYER_COLORS[1]];
+  test('survival: waves grow and only use unlocked enemy types; wave 10 brings the boss', () => {
+    let prev = 0;
+    for (let n = 1; n <= 30; n++) {
+      const wv = RR.Survival.wave(n);
+      if (wv.length < prev) throw new Error('wave ' + n + ' shrank');
+      prev = wv.length;
+      for (const t of wv) if (!C.ENEMIES[t] || C.SURVIVAL.POOL[t] > n) throw new Error(`wave ${n}: ${t} too early`);
+    }
+    if (RR.Survival.wave(10)[0] !== 'commander') throw new Error('no boss on wave 10');
+  });
+  test('survival: enemies warp in away from the players; knocked-out players respawn shielded', () => {
+    const def = RR.ARENA_DEFS[0];
+    const w = new RR.World(def, { colors, campaign: true, enemies: [], spawns: RR.Campaign.spawnsFor(def) });
+    for (let k = 0; k < 6; k++) {
+      const e = w.spawnEnemy('scout');
+      if (!e) throw new Error('no room for enemy ' + k);
+      for (const p of w.tanks.slice(0, 2)) if (Math.hypot(p.x - e.x, p.y - e.y) < 4) throw new Error('spawned too close');
+    }
+    const p1 = w.tanks[0];
+    w.destroyTank(p1, 2, 'shell');
+    if (p1.alive) throw new Error('should be down');
+    if (!w.respawnPlayer(0) || !p1.alive || !p1.shield) throw new Error('respawn');
+  });
+  test('blaster: always fires three shells', () => {
+    const w = new RR.World(RR.ARENA_DEFS[0], { colors, campaign: true, absent: [1], enemies: [{ type: 'blaster', x: 15.5, y: 6.5, angle: Math.PI }] });
+    w.frozen = false;
+    const b = w.tanks[2];
+    b.turret = Math.PI;
+    w.tryFire(b, RR.NO_INPUT);
+    if (w.bullets.filter((x) => x.owner === 2).length !== 3) throw new Error('blaster shells');
+  });
+}
+
+
+console.log('New arena effects');
+{
+  const colors = [C.PLAYER_COLORS[0], C.PLAYER_COLORS[1]];
+  const byName = (n) => RR.ARENA_DEFS.find((d) => d.name === n);
+  const tick = (w, sec, inputs = [RR.NO_INPUT, RR.NO_INPUT]) => { for (let i = 0; i < sec * C.SIM_HZ; i++) w.update(1 / C.SIM_HZ, inputs); };
+  test('belts: a parked tank on a belt gets carried along', () => {
+    const w = new RR.World(byName('Sorting Room'), { colors, effects: true });
+    w.frozen = false;
+    if (w.mechKey !== 'factory') throw new Error('mech ' + w.mechKey);
+    const t = w.tanks[0];
+    t.x = 4.5; t.y = 1.5; // top belt, heading east
+    tick(w, 1);
+    if (t.x < 5.4) throw new Error('only moved to ' + t.x.toFixed(2));
+  });
+  test('teleporters: tanks and shells come out of the partner pad', () => {
+    const w = new RR.World(byName('Warp Zone'), { colors, effects: true });
+    w.frozen = false;
+    const pad = w.portals[0];
+    const t = w.tanks[0];
+    t.x = pad.a.x; t.y = pad.a.y;
+    tick(w, 0.05);
+    if (Math.hypot(t.x - pad.b.x, t.y - pad.b.y) > 0.5) throw new Error('tank not warped');
+    tick(w, 0.5);
+    if (Math.hypot(t.x - pad.b.x, t.y - pad.b.y) > 0.5) throw new Error('tank bounced back');
+    t.x = 5.5; t.y = 6.5; t.portalLock = null;
+    w.tanks[1].x = 10.5; w.tanks[1].y = 6.5;
+    w.bullets.push({ id: 999, owner: 1, x: pad.a.x - 0.5, y: pad.a.y, vx: 3, vy: 0, speed: 3, bounces: 0, maxBounces: 1, bent: 0, age: 0, dead: false });
+    tick(w, 0.25);
+    const b = w.bullets.find((x) => x.id === 999);
+    if (!b || !b.warped || b.x < 15) throw new Error('shell not warped ' + JSON.stringify(b && [b.x, b.y]));
+  });
+  test('gates: swap every few seconds, and never shut on a tank', () => {
+    const w = new RR.World(byName('Portcullis'), { colors, effects: true });
+    w.frozen = false;
+    const g0 = w.gates.find((g) => g.group === 0), g1 = w.gates.find((g) => g.group === 1);
+    if (w.tileAt(g0.c, g0.r) !== T.WALL || w.tileAt(g1.c, g1.r) !== T.FLOOR) throw new Error('start state');
+    const t = w.tanks[0];
+    t.x = g1.c + 0.5; t.y = g1.r + 0.5; // sit in an open gate
+    tick(w, C.GATE_EVERY + 0.2, [RR.NO_INPUT, RR.NO_INPUT]);
+    if (w.tileAt(g0.c, g0.r) !== T.FLOOR) throw new Error('shut gate should open');
+    if (w.tileAt(g1.c, g1.r) !== T.FLOOR) throw new Error('gate shut on a tank');
+    t.x = 5.5; t.y = 6.5;
+    tick(w, 0.1);
+    if (w.tileAt(g1.c, g1.r) !== T.WALL) throw new Error('gate should shut once clear');
+  });
+  test('gates: with arena effects off they stay open', () => {
+    const w = new RR.World(byName('Portcullis'), { colors, effects: false });
+    for (const g of w.gates) if (w.tileAt(g.c, g.r) !== T.FLOOR) throw new Error('closed gate');
+  });
+  test('wind: gusts push tanks and bend shells', () => {
+    const w = new RR.World(byName('Rooftops'), { colors, effects: true });
+    w.frozen = false;
+    w.mechClock = C.WIND_CYCLE[0] + C.WIND_CYCLE[1]; // full gust
+    w.updateMechanic(0);
+    if (Math.abs(w.wind) < 0.99) throw new Error('wind ' + w.wind);
+    const t = w.tanks[0];
+    const y0 = t.y;
+    w.updateTank(t, RR.NO_INPUT, 0.2);
+    if (Math.abs(t.y - y0) < 0.1) throw new Error('tank not pushed');
+    w.bullets.push({ id: 5, owner: 0, x: 11, y: 6.5, vx: 4, vy: 0, speed: 4, bounces: 0, maxBounces: 1, bent: 0, age: 0, dead: false });
+    w.updateBullets(0.1);
+    const b = w.bullets[0];
+    if (!b || Math.abs(b.vy) < 0.5) throw new Error('shell not bent');
+  });
+}
+
 console.log('Wii Remote');
 {
   const W = RR.WiimoteParse;

@@ -35,6 +35,7 @@ window.RR = window.RR || {};
         grid: this.lastGrid,
         tide: w.tide,
         storm: w.storm,
+        wind: w.wind,
         eruptions: w.eruptions.map((e) => Object.assign({}, e)),
         regrow: w.regrow.map((g) => Object.assign({}, g)),
         events: events.filter((e) => e.type !== 'tread'),
@@ -58,6 +59,7 @@ window.RR = window.RR || {};
       const proxy = {
         arena: w.arena, theme: w.theme, ammo: w.ammo, minesEnabled: w.minesEnabled,
         mechKey: w.mechKey, mechanic: w.mechanic, holes: w.holes, shallow: w.shallow,
+        belts: w.belts, portals: w.portals, gateSet: w.gateSet, wind: 0, campaign: w.campaign,
         grid: frames[0].grid,
         tanks: w.tanks.map((k) => ({ index: k.index, color: k.color, team: k.team, label: k.label })),
         bullets: [], mines: [], eruptions: [], regrow: [], tide: 0, storm: 0, powerups: [],
@@ -78,6 +80,7 @@ window.RR = window.RR || {};
       p.grid = f.grid;
       p.tide = f.tide;
       p.storm = f.storm;
+      p.wind = f.wind || 0;
       p.eruptions = f.eruptions;
       p.regrow = f.regrow;
     }

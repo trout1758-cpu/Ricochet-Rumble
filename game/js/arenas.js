@@ -6,6 +6,9 @@
 // (players then start in opposite corners).
 // Legend:  .  floor      #  solid block      x  crate (mines destroy it)
 //          o  pit (blocks tanks, shells fly over)        1  player 1 spawn
+//          > < ^ v  conveyor belt (floor that carries tanks that way)
+//          p  teleporter pad (paired with its mirror image)
+//          d D  gates: the two sets take turns to be shut
 // The generated half turns "1" into player 2's spawn.
 window.RR = window.RR || {};
 
@@ -111,6 +114,56 @@ RR.THEMES = {
     crateTop: '#e08c3c', crateSide: '#a8621f', crateMark: '#f3c27f', crateStyle: 'box',
     pit: '#04050c', pitWall: '#4b3488', pitStyle: 'void',
     tread: 'rgba(200,210,255,0.12)', scorch: '0,0,0',
+  },
+  factory: {
+    label: 'Factory',
+    backdrop: '#1f2226', backdropLine: 'rgba(255,200,40,0.05)',
+    rimTop: '#5b6067', rimSide: '#3b3f45',
+    floor: '#a3a9ae', floorAlt: '#989ea4', pattern: 'grid', patternInk: 'rgba(45,50,58,0.22)',
+    wallTop: '#f2b632', wallSide: '#b07e10', wallEdge: '#ffd76e', wallStyle: 'toy',
+    crateTop: '#c8955a', crateSide: '#94663a', crateMark: '#e6c08e', crateStyle: 'box',
+    pit: '#15171a', pitWall: '#3a3f45',
+    tread: 'rgba(30,32,36,0.18)', scorch: '20,20,22',
+  },
+  arcade: {
+    label: 'Arcade',
+    backdrop: '#0e0618', backdropLine: 'rgba(255,90,220,0.06)',
+    rimTop: '#3a2458', rimSide: '#26163b',
+    floor: '#251639', floorAlt: '#2d1b45', pattern: 'grid', patternInk: 'rgba(255,90,220,0.22)',
+    wallTop: '#3be8ff', wallSide: '#1b8fb0', wallEdge: '#b5f7ff', wallStyle: 'toy',
+    crateTop: '#ff5fd2', crateSide: '#b02c8e', crateMark: '#ffb3ec', crateStyle: 'box',
+    pit: '#05030a', pitWall: '#6a2fb0', pitStyle: 'void',
+    tread: 'rgba(255,150,240,0.12)', scorch: '0,0,0',
+  },
+  castle: {
+    label: 'Castle',
+    backdrop: '#2a3324', backdropLine: 'rgba(0,0,0,0.15)',
+    rimTop: '#8d8577', rimSide: '#635c50',
+    floor: '#c4bcac', floorAlt: '#b9b09f', pattern: 'speckle', patternInk: 'rgba(90,80,65,0.22)',
+    wallTop: '#9c968c', wallSide: '#6d675e', wallEdge: '#c2bcb2', wallStyle: 'stone',
+    crateTop: '#a0703e', crateSide: '#704a23', crateMark: '#7a5228', crateStyle: 'planks',
+    pit: '#2e6a85', pitWall: '#8cc7dd', pitStyle: 'water',
+    tread: 'rgba(90,75,55,0.2)', scorch: '40,32,22',
+  },
+  haunted: {
+    label: 'Haunted',
+    backdrop: '#0b0c12', backdropLine: 'rgba(160,140,255,0.04)',
+    rimTop: '#3a3442', rimSide: '#26212d',
+    floor: '#56634f', floorAlt: '#4c5946', pattern: 'grass', patternInk: 'rgba(20,30,20,0.3)',
+    wallTop: '#7a7d86', wallSide: '#4f525a', wallEdge: '#a3a7b0', wallStyle: 'stone',
+    crateTop: '#6b4a32', crateSide: '#45301f', crateMark: '#4a3322', crateStyle: 'planks',
+    pit: '#100c14', pitWall: '#3c3048', pitStyle: 'void',
+    tread: 'rgba(15,20,12,0.25)', scorch: '10,10,10',
+  },
+  sky: {
+    label: 'Sky',
+    backdrop: '#5aa9e6', backdropLine: 'rgba(255,255,255,0.1)',
+    rimTop: '#f4f8ff', rimSide: '#c7d7ec',
+    floor: '#f2f6fc', floorAlt: '#e8f0fa', pattern: 'dots', patternInk: 'rgba(120,160,210,0.22)',
+    wallTop: '#ff9f6e', wallSide: '#d0663a', wallEdge: '#ffc9a8', wallStyle: 'toy',
+    crateTop: '#d9b26e', crateSide: '#a8803e', crateMark: '#f0d59c', crateStyle: 'box',
+    pit: '#7fc4f0', pitWall: '#e6f6ff',
+    tread: 'rgba(120,150,190,0.16)', scorch: '40,50,70',
   },
 };
 
@@ -547,6 +600,186 @@ RR.ARENA_DEFS = [
       '...........',
     ],
   },
+  {
+    name: 'Assembly Line', theme: 'factory',
+    half: [
+      '...........',
+      '.vvv...#...',
+      '.vvv...#...',
+      '.vvv....x..',
+      '.......xx..',
+      '....##.....',
+      '.1..#....^^',
+      '....##.....',
+      '.......xx..',
+      '.^^^....x..',
+      '.^^^...#...',
+      '.^^^...#...',
+      '...........',
+    ],
+  },
+  {
+    name: 'Sorting Room', theme: 'factory',
+    half: [
+      '...........',
+      '.>>>>>>>>v.',
+      '.^.......v.',
+      '.^.##.x..v.',
+      '.^.#.....v.',
+      '.^.......v.',
+      '.^1......v.',
+      '.^.......v.',
+      '.^.#.....v.',
+      '.^.##.x..v.',
+      '.^.......v.',
+      '.^<<<<<<<<.',
+      '...........',
+    ],
+  },
+  {
+    name: 'Warp Zone', theme: 'arcade',
+    half: [
+      '...........',
+      '.p.....#...',
+      '.......#...',
+      '...##......',
+      '...#....x..',
+      '...#....x..',
+      '.1.....##..',
+      '...#....x..',
+      '...#....x..',
+      '...##......',
+      '.......#...',
+      '.p.....#...',
+      '...........',
+    ],
+  },
+  {
+    name: 'Short Circuit', theme: 'arcade', sym: 'rotate',
+    half: [
+      '...........',
+      '.1.....p...',
+      '.......#...',
+      '..###..#...',
+      '....#......',
+      '....#...xx.',
+      '.p.........',
+      '........#..',
+      '...x....#..',
+      '...x..###..',
+      '...........',
+      '...........',
+      '...........',
+    ],
+  },
+  {
+    name: 'Portcullis', theme: 'castle',
+    half: [
+      '...........',
+      '.#######...',
+      '.#.....#...',
+      '.#.....d...',
+      '.#.....#..x',
+      '.#.....#...',
+      '.#.1...D...',
+      '.#.....#...',
+      '.#.....#..x',
+      '.#.....d...',
+      '.#.....#...',
+      '.###D###...',
+      '...........',
+    ],
+  },
+  {
+    name: 'Gatehouse', theme: 'castle',
+    half: [
+      '.........#.',
+      '.........d.',
+      '...x.....#.',
+      '...x.....#.',
+      '.........D.',
+      '...##....#.',
+      '.1.......#.',
+      '...##....#.',
+      '.........D.',
+      '...x.....#.',
+      '...x.....#.',
+      '.........d.',
+      '.........#.',
+    ],
+  },
+  {
+    name: 'Graveyard', theme: 'haunted',
+    half: [
+      '...........',
+      '..x...x....',
+      '..x...x..#.',
+      '.........#.',
+      '....o......',
+      '.......x...',
+      '.1.....x...',
+      '.......x...',
+      '....o......',
+      '.........#.',
+      '..x...x..#.',
+      '..x...x....',
+      '...........',
+    ],
+  },
+  {
+    name: 'Old Manor', theme: 'haunted', sym: 'rotate',
+    half: [
+      '...........',
+      '.1..#......',
+      '....#..###.',
+      '..###......',
+      '.......x...',
+      '.##....x..#',
+      '.....o....#',
+      '...#.......',
+      '...#...##..',
+      '...#.......',
+      '.......x...',
+      '..xx...x...',
+      '...........',
+    ],
+  },
+  {
+    name: 'Rooftops', theme: 'sky',
+    half: [
+      '...........',
+      '.....o.....',
+      '..#..o..#..',
+      '.....o.....',
+      '...........',
+      '..oo...oo..',
+      '.1......x..',
+      '..oo...oo..',
+      '...........',
+      '.....o.....',
+      '..#..o..#..',
+      '.....o.....',
+      '...........',
+    ],
+  },
+  {
+    name: 'Cloud Bridges', theme: 'sky',
+    half: [
+      '...........',
+      '.ooo...ooo.',
+      '.o.......o.',
+      '.o..##...o.',
+      '...........',
+      '.ooo..x....',
+      '.1....x....',
+      '.ooo..x....',
+      '...........',
+      '.o..##...o.',
+      '.o.......o.',
+      '.ooo...ooo.',
+      '...........',
+    ],
+  },
 ];
 
 // Expand a half-arena definition into a full grid + spawn points.
@@ -555,6 +788,18 @@ RR.buildArena = function buildArena(def) {
   const T = RR.TILE;
   const grid = new Uint8Array(COLS * ROWS);
   const spawns = [null, null];
+  // belts: 0 none, 1 east, 2 west, 3 south, 4 north
+  const belts = new Uint8Array(COLS * ROWS);
+  const portals = [];
+  const gates = [];
+  const BELT = { '>': 1, '<': 2, 'v': 3, '^': 4 };
+  const flipBelt = (b) => {
+    if (!b) return 0;
+    if (b === 1) return 2;
+    if (b === 2) return 1;
+    if (def.sym === 'rotate') return b === 3 ? 4 : 3;
+    return b;
+  };
   if (def.half.length !== ROWS) throw new Error(`${def.name}: expected ${ROWS} rows`);
   def.half.forEach((row, r) => {
     if (row.length !== COLS / 2) throw new Error(`${def.name}: row ${r} must be ${COLS / 2} wide`);
@@ -566,7 +811,16 @@ RR.buildArena = function buildArena(def) {
       if (ch === '#') t = T.WALL;
       else if (ch === 'x') t = T.CRATE;
       else if (ch === 'o') t = T.PIT;
-      else if (ch === '1') {
+      else if (ch === 'd' || ch === 'D') {
+        t = ch === 'd' ? T.WALL : T.FLOOR;
+        gates.push({ c, r, group: ch === 'd' ? 0 : 1 });
+        if (mc !== c || mr !== r) gates.push({ c: mc, r: mr, group: ch === 'd' ? 0 : 1 });
+      } else if (ch === 'p') {
+        portals.push({ a: { x: c + 0.5, y: r + 0.5 }, b: { x: mc + 0.5, y: mr + 0.5 } });
+      } else if (BELT[ch]) {
+        belts[r * COLS + c] = BELT[ch];
+        belts[mr * COLS + mc] = flipBelt(BELT[ch]);
+      } else if (ch === '1') {
         spawns[0] = { x: c + 0.5, y: r + 0.5, angle: 0 };
         spawns[1] = { x: mc + 0.5, y: mr + 0.5, angle: Math.PI };
       }
@@ -575,5 +829,5 @@ RR.buildArena = function buildArena(def) {
     }
   });
   if (!spawns[0]) throw new Error(`${def.name}: missing spawn`);
-  return { name: def.name, theme: RR.THEMES[def.theme], themeKey: def.theme, sym: def.sym || 'mirror', grid, spawns };
+  return { name: def.name, theme: RR.THEMES[def.theme], themeKey: def.theme, sym: def.sym || 'mirror', grid, spawns, belts, portals, gates };
 };

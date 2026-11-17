@@ -21,6 +21,7 @@ Either player can also use a **Wii Remote + Nunchuk** (classic Wii Play controls
 ### Game modes
 
 - **Duel:** head to head, first to 3, 5 or 7 rounds. No second player? Click **Computer** on Player 2's card to play against a CPU tank that banks shots off walls and lays mines.
+- **Survival:** endless waves; see below.
 - **Co-op campaign:** one or two players team up against **20 stages** of CPU tanks.
   Clear every enemy tank to move on. You share 3 lives and get an extra life every 5 stages.
   A stage is lost when every player's tank is knocked out; you then retry it.
@@ -35,6 +36,31 @@ Either player can also use a **Wii Remote + Nunchuk** (classic Wii Play controls
 | Sapper | charcoal | Lays mines and bank-shots you |
 | Marksman | white | Stays put; fast, precise shots around corners |
 | Commander | gold | Fast-firing, mobile, dodges, mines: the boss |
+
+### Survival
+
+Endless waves of CPU tanks warp into one arena (pick it in the lobby, or leave it on Rotation/Random for a random one).
+Every wave is bigger, new enemy types join as you go, and every 10th wave brings a Commander.
+Knocked-out players come back after a couple of seconds, shielded, while the team has lives.
+There are 3 lives, plus one more every 5 waves. Your best wave is saved.
+
+Two extra enemies show up in later campaign stages and in Survival:
+- **Ghost** (pale blue): fades almost invisible while it moves.
+- **Blaster** (red): every shot is a triple shot.
+
+### Hats
+
+Earn hats and wear them: pick one under your colour on your player card. Locked hats show a **?**; hover to see how to unlock it.
+
+| Hat | Unlock |
+| --- | --- |
+| Party hat | Pull off a trick shot |
+| Top hat | Beat the Computer in a duel |
+| Cowboy hat | Clear campaign stage 5 |
+| Propeller cap | Reach wave 5 in Survival |
+| Viking helmet | Grab 25 power-ups (in total) |
+| Chef hat | Destroy 100 CPU tanks (in total) |
+| Crown | Clear the whole campaign |
 
 ### Power-ups
 
@@ -209,6 +235,11 @@ Turn **Arena effects** off in the lobby for plain rules.
 | Playroom | **Bouncy blocks**: shells bounce one extra time. |
 | Sandbox | **Sandstorms** blow through and hide everything except the area around each tank. |
 | Garden | **Regrowth**: blasted planters grow back after a while. |
+| Factory | **Conveyor belts** carry tanks along (they still drive, the belt just adds to it). |
+| Arcade | **Teleporters**: tanks *and shells* that touch a glowing pad come out of its partner. Portal kills count as trick shots. |
+| Castle | **Gates**: two sets of barred gates take turns to swing shut every few seconds. A gate never shuts on a tank. |
+| Haunted | **Lights out**: it's dark. Your headlight shows where your turret points; shells, explosions and the odd lightning flash light things up. |
+| Sky | **Gusts**: wind blows north or south every so often, shoving tanks and curving shells. |
 | Workshop, Blueprint, Kitchen | Classic rules. |
 
 Random events (eruptions) always happen in mirrored pairs, so neither side gets an advantage.
@@ -238,7 +269,7 @@ The ammo type and mines on/off are chosen in the lobby.
 
 ### Arenas
 
-There are 24 arenas across 10 themes.
+There are 34 arenas across 15 themes.
 Every arena is symmetric, so both sides are equal.
 Most are mirrored left-to-right; the ones marked ↻ are rotated instead, so the players start in opposite corners.
 
@@ -268,6 +299,16 @@ Most are mirrored left-to-right; the ones marked ↻ are rotated instead, so the
 | Checkmate ↻ | Kitchen | A checkerboard of blocks and boxes |
 | Spiral ↻ | Blueprint | Two interlocking spirals |
 | Snowball Fort | Frost | Snow walls and ice blocks |
+| Assembly Line | Factory | Belt strips to ride (or fight against) |
+| Sorting Room | Factory | A conveyor loop round each half |
+| Warp Zone | Arcade | Corner teleporters for surprise flanks and portal shots |
+| Short Circuit ↻ | Arcade | Three teleporter pairs |
+| Portcullis | Castle | Start inside a fort with four gates |
+| Gatehouse | Castle | A wall down each side with gates taking turns |
+| Graveyard | Haunted | Tombstones and open graves in the dark |
+| Old Manor ↻ | Haunted | Dark corridors and rooms |
+| Rooftops | Sky | Gaps between roofs; shells fly over them |
+| Cloud Bridges | Sky | Narrow bridges over the sky |
 
 Choose **Rotation** to play them in this order, **Random**, or a single arena.
 To make your own, add an entry to [`game/js/arenas.js`](game/js/arenas.js).

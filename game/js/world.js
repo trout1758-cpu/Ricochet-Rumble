@@ -34,6 +34,8 @@ window.RR = window.RR || {};
       this.turnRate = opts.turnRate || C.TURRET_TURN_RATE;
       this.mineMax = opts.mineMax != null ? opts.mineMax : C.MINE_MAX;
       this.absent = !!opts.absent;
+      this.hat = opts.hat || null;
+      this.spawn = { x: spawn.x, y: spawn.y, angle: spawn.angle };
       // power-ups
       this.shield = false;
       this.boost = 0; this.spread = 0; this.bouncy = 0; this.rapid = 0;
@@ -83,14 +85,10 @@ window.RR = window.RR || {};
         return new Tank(this, i, sp, opts.colors[i], {
           team: this.campaign ? 0 : i, absent: absent.has(i), ai,
           speedMul: ai ? ai.speed : 1, turnRate: ai ? ai.turn : null, label: ai ? 'CPU' : null,
+          hat: opts.hats ? opts.hats[i] : null,
         });
       });
-      for (const e of opts.enemies || []) {
-        const def = C.ENEMIES[e.type];
-        this.tanks.push(new Tank(this, this.tanks.length, e, def.color, {
-          team: 1, ai: def, ammo: def.ammo, speedMul: def.speed, turnRate: def.turn, mineMax: def.mines, label: def.name,
-        }));
-      }
+      for (const e of opts.enemies || []) this.addEnemy(e);
       this.powerupsOn = !!opts.powerups;
       this.powerups = [];
       this.powerupTimer = C.POWERUP_FIRST;
@@ -113,11 +111,28 @@ window.RR = window.RR || {};
       this.regrow = [];
       this.tide = 0;
       this.storm = 0;
+      this.wind = 0;
       this.mechClock = 0;
+      const a = this.arena;
+      this.belts = null;
+      this.portals = [];
+      this.gates = a.gates || [];
+      this.gateSet = new Set(this.gates.map((g) => g.r * C.COLS + g.c));
+      if (key !== 'castle') {
+        // no gate mechanic: gates just stay open
+        for (const g of this.gates) this.grid[g.r * C.COLS + g.c] = T.FLOOR;
+        this.gateSet = new Set();
+      }
       if (!key || !C.MECH[key]) {
         this.mechanic = null;
         return;
       }
+      if (key === 'factory' && a.belts && a.belts.some((b) => b)) this.belts = a.belts;
+      if (key === 'arcade') this.portals = a.portals || [];
+      this.gatePhase = 0;
+      this.gateTimer = C.GATE_EVERY;
+      this.gatePending = [];
+      this.lightningTimer = 3;
       let pits = 0, crates = 0, shallow = 0;
       for (let r = 0; r < C.ROWS; r++) {
         for (let c = 0; c < C.COLS; c++) {
@@ -141,6 +156,7 @@ window.RR = window.RR || {};
       }
       const applies = {
         space: pits > 0, volcano: pits > 0, beach: shallow > 0, garden: crates > 0,
+        factory: !!this.belts, arcade: this.portals.length > 0, castle: this.gates.length > 0,
       }[key];
       if (applies === false) {
         this.mechanic = null;
@@ -166,6 +182,26 @@ window.RR = window.RR || {};
         case 'garden':
           this.updateRegrow(dt);
           break;
+        case 'castle':
+          this.updateGates(dt);
+          break;
+        case 'haunted':
+          this.lightningTimer -= dt;
+          if (this.lightningTimer <= 0) {
+            const [lo, hi] = C.LIGHTNING_EVERY;
+            this.lightningTimer = lo + Math.random() * (hi - lo);
+            this.emit({ type: 'lightning' });
+          }
+          break;
+        case 'sky': {
+          // gusts alternate blowing south and north (fair on mirrored maps)
+          const len = C.WIND_CYCLE.reduce((x, y) => x + y, 0);
+          const dir = Math.floor(this.mechClock / len) % 2 ? -1 : 1;
+          const was = this.wind;
+          this.wind = cycleLevel(this.mechClock, C.WIND_CYCLE) * dir;
+          if (!was && this.wind) this.emit({ type: 'gust', dir });
+          break;
+        }
       }
     }
 
@@ -240,6 +276,43 @@ window.RR = window.RR || {};
         this.emit({ type: 'crateRegrow', c: g.c, r: g.r });
       }
       this.regrow = this.regrow.filter((g) => !g.done);
+    }
+
+    // Gates: every few seconds the shut set opens and the open set shuts
+    // (a gate waits to shut until nothing is in the way).
+    updateGates(dt) {
+      this.gateTimer -= dt;
+      if (this.gateTimer <= 0) {
+        this.gateTimer = C.GATE_EVERY;
+        this.gatePhase = 1 - this.gatePhase;
+        for (const g of this.gates) {
+          if (g.group === this.gatePhase) this.gatePending.push(g);
+          else if (this.tileAt(g.c, g.r) === T.WALL) this.setTile(g.c, g.r, T.FLOOR);
+        }
+        this.emit({ type: 'gates' });
+      }
+      if (!this.gatePending.length) return;
+      this.gatePending = this.gatePending.filter((g) => {
+        const blocked = this.tanks.some((t) => {
+          if (!t.alive) return false;
+          const nx = U.clamp(t.x, g.c, g.c + 1), ny = U.clamp(t.y, g.r, g.r + 1);
+          return Math.hypot(t.x - nx, t.y - ny) < C.TANK_RADIUS + 0.05;
+        }) || this.bullets.some((b) => b.x > g.c - 0.1 && b.x < g.c + 1.1 && b.y > g.r - 0.1 && b.y < g.r + 1.1)
+          || this.mines.some((m) => Math.floor(m.x) === g.c && Math.floor(m.y) === g.r);
+        if (blocked) return true;
+        this.setTile(g.c, g.r, T.WALL);
+        return false;
+      });
+    }
+
+    // Teleporter partner for a point on a pad (or null).
+    portalAt(x, y, r = C.PORTAL_R) {
+      for (let i = 0; i < this.portals.length; i++) {
+        const p = this.portals[i];
+        if (Math.hypot(p.a.x - x, p.a.y - y) < r) return { from: p.a, to: p.b, id: i * 2 };
+        if (Math.hypot(p.b.x - x, p.b.y - y) < r) return { from: p.b, to: p.a, id: i * 2 + 1 };
+      }
+      return null;
     }
 
     inShallows(t) {
@@ -457,8 +530,40 @@ window.RR = window.RR || {};
         this.emit({ type: 'tread', x: t.x, y: t.y, angle: t.angle });
       }
 
+      this.applyArenaForces(t, dt);
+
       if (inp.fire > 0) this.tryFire(t, inp);
       if (inp.mine > 0) this.tryMine(t);
+    }
+
+    // Conveyor belts, wind and teleporters acting on a tank.
+    applyArenaForces(t, dt) {
+      let px = 0, py = 0;
+      if (this.belts) {
+        const b = this.belts[Math.floor(t.y) * C.COLS + Math.floor(t.x)];
+        if (b === 1) px += C.BELT_SPEED; else if (b === 2) px -= C.BELT_SPEED;
+        else if (b === 3) py += C.BELT_SPEED; else if (b === 4) py -= C.BELT_SPEED;
+      }
+      if (this.wind) py += this.wind * C.WIND_TANK;
+      if (px || py) {
+        t.x += px * dt;
+        t.y += py * dt;
+        this.resolveTank(t);
+      }
+      if (this.portals.length) {
+        if (t.portalLock) {
+          if (Math.hypot(t.x - t.portalLock.x, t.y - t.portalLock.y) > C.PORTAL_R + 0.45) t.portalLock = null;
+        } else {
+          const hit = this.portalAt(t.x, t.y);
+          if (hit) {
+            const fx = t.x, fy = t.y;
+            t.x = hit.to.x; t.y = hit.to.y;
+            t.portalLock = hit.to;
+            this.resolveTank(t);
+            this.emit({ type: 'teleport', player: t.index, x: fx, y: fy, tx: t.x, ty: t.y, tank: true });
+          }
+        }
+      }
     }
 
     collideTanks() {
@@ -546,7 +651,7 @@ window.RR = window.RR || {};
       t.vx = t.vy = 0;
       this.emit({
         type: 'tankDestroyed', player: t.index, by, cause, x: t.x, y: t.y, angle: t.angle, turret: t.turret,
-        bounces: shell ? shell.bounces : 0, bent: shell ? shell.bent : 0,
+        bounces: shell ? shell.bounces : 0, bent: shell ? shell.bent : 0, warped: !!(shell && shell.warped),
       });
     }
 
@@ -596,6 +701,27 @@ window.RR = window.RR || {};
         const h = dt / steps;
         for (let s = 0; s < steps && !b.dead; s++) {
           if (gravity && this.pullShell(b, h)) break;
+          if (this.wind) {
+            b.vy += C.WIND_SHELL * this.wind * h;
+            const sp = Math.hypot(b.vx, b.vy);
+            b.vx *= b.speed / sp;
+            b.vy *= b.speed / sp;
+            b.bent += (Math.abs(C.WIND_SHELL * this.wind) * h) / b.speed;
+          }
+          if (this.portals.length) {
+            if (b.portalLock) {
+              if (Math.hypot(b.x - b.portalLock.x, b.y - b.portalLock.y) > C.PORTAL_R + 0.2) b.portalLock = null;
+            } else {
+              const hit = this.portalAt(b.x, b.y, C.PORTAL_R * 0.8);
+              if (hit) {
+                const fx = b.x, fy = b.y;
+                b.x = hit.to.x; b.y = hit.to.y;
+                b.portalLock = hit.to;
+                b.warped = true;
+                this.emit({ type: 'teleport', x: fx, y: fy, tx: b.x, ty: b.y, owner: b.owner });
+              }
+            }
+          }
           let bounced = false;
           b.x += b.vx * h;
           if (this.circleHits(b.x, b.y, br, World.blocksShell)) {
@@ -720,6 +846,71 @@ window.RR = window.RR || {};
       }
     }
 
+    // ---- CPU enemies and respawns ------------------------------------------------
+    addEnemy(e) {
+      const def = C.ENEMIES[e.type];
+      const t = new Tank(this, this.tanks.length, e, def.color, {
+        team: 1, ai: def, ammo: def.ammo, speedMul: def.speed, turnRate: def.turn, mineMax: def.mines, label: def.name,
+      });
+      if (def.spread) t.spread = Infinity;
+      this.tanks.push(t);
+      return t;
+    }
+
+    // A free spot far from the players for a new enemy (null if none).
+    enemySpot(minDist = 6) {
+      const players = this.tanks.filter((t) => t.alive && t.team === 0);
+      const others = this.tanks.filter((t) => t.alive);
+      const spots = [];
+      for (let r = 1; r < C.ROWS - 1; r++) {
+        for (let c = 1; c < C.COLS - 1; c++) {
+          const x = c + 0.5, y = r + 0.5;
+          if (this.tileAt(c, r) !== T.FLOOR || this.circleHits(x, y, C.TANK_RADIUS + 0.12, World.blocksTank)) continue;
+          if (players.some((p) => Math.hypot(p.x - x, p.y - y) < minDist)) continue;
+          if (others.some((o) => Math.hypot(o.x - x, o.y - y) < 1.6)) continue;
+          if (this.mines.some((m) => Math.hypot(m.x - x, m.y - y) < 1.5)) continue;
+          spots.push({ x, y });
+        }
+      }
+      return spots.length ? spots[Math.floor(Math.random() * spots.length)] : null;
+    }
+
+    // Warp a new CPU tank in mid-fight (survival). Returns it, or null if there's no room.
+    spawnEnemy(type) {
+      const spot = this.enemySpot(6) || this.enemySpot(4);
+      if (!spot) return null;
+      const p = this.tanks.find((t) => t.alive && t.team === 0);
+      const angle = p ? Math.atan2(p.y - spot.y, p.x - spot.x) : Math.PI;
+      const t = this.addEnemy({ type, x: spot.x, y: spot.y, angle });
+      t.turret = t.turretTarget = angle;
+      t.brain = null;
+      this.emit({ type: 'warpIn', player: t.index, x: t.x, y: t.y });
+      return t;
+    }
+
+    // Bring a knocked-out player back at their start, with a shield.
+    respawnPlayer(i) {
+      const t = this.tanks[i];
+      if (!t || t.alive || t.absent) return false;
+      let { x, y, angle } = t.spawn;
+      const busy = (px, py) => this.tanks.some((o) => o.alive && Math.hypot(o.x - px, o.y - py) < 0.9)
+        || this.mines.some((m) => Math.hypot(m.x - px, m.y - py) < 1.3);
+      if (busy(x, y)) {
+        let best = null;
+        for (let r = 0; r < C.ROWS && !best; r++) {
+          for (let c = 0; c < C.COLS; c++) {
+            const px = c + 0.5, py = r + 0.5;
+            if (this.tileAt(c, r) !== T.FLOOR || busy(px, py)) continue;
+            if (!best || Math.hypot(px - t.spawn.x, py - t.spawn.y) < Math.hypot(best.x - t.spawn.x, best.y - t.spawn.y)) best = { x: px, y: py };
+          }
+        }
+        if (best) ({ x, y } = best);
+      }
+      Object.assign(t, { x, y, angle, turret: angle, turretTarget: angle, vx: 0, vy: 0, alive: true, cooldown: 0.4, mineCooldown: 0.4, boost: 0, spread: 0, bouncy: 0, rapid: 0, shield: true });
+      this.emit({ type: 'warpIn', player: i, x, y });
+      return true;
+    }
+
     // ---- power-ups -------------------------------------------------------------
     updatePowerups(dt) {
       for (const p of this.powerups) p.age += dt;
@@ -758,21 +949,25 @@ window.RR = window.RR || {};
         && this.tanks.every((t) => !t.alive || Math.hypot(t.x - x, t.y - y) > 2.5)
         && this.mines.every((m) => Math.hypot(m.x - x, m.y - y) > 1.2)
         && this.powerups.every((p) => Math.hypot(p.x - x, p.y - y) > 2);
-      for (let i = 0; i < 40; i++) {
+      for (let i = 0; i < 120; i++) {
         const x = Math.floor(1 + Math.random() * (C.COLS - 2)) + 0.5;
         const y = Math.floor(1 + Math.random() * (C.ROWS - 2)) + 0.5;
         if (!ok(x, y)) continue;
+        // duels: always a mirrored pair, so neither player is favoured
+        let twin = null;
+        if (!this.campaign) {
+          const [mx, my] = this.mirrorPoint(x, y);
+          if (Math.hypot(mx - x, my - y) < 1.5 || !ok(mx, my)) continue;
+          twin = { x: mx, y: my };
+        }
         const p = { id: this.nextId++, kind, x, y, age: 0 };
         this.powerups.push(p);
         this.emit({ type: 'powerupSpawn', kind, x, y });
-        if (!this.campaign) {
-          const [mx, my] = this.mirrorPoint(x, y);
-          if (Math.hypot(mx - x, my - y) > 1 && ok(mx, my)) {
-            const q = { id: this.nextId++, kind, x: mx, y: my, age: 0, twin: p.id };
-            p.twin = q.id;
-            this.powerups.push(q);
-            this.emit({ type: 'powerupSpawn', kind, x: mx, y: my });
-          }
+        if (twin) {
+          const q = { id: this.nextId++, kind, x: twin.x, y: twin.y, age: 0, twin: p.id };
+          p.twin = q.id;
+          this.powerups.push(q);
+          this.emit({ type: 'powerupSpawn', kind, x: twin.x, y: twin.y });
         }
         return;
       }

@@ -105,6 +105,24 @@ window.RR = window.RR || {};
       this.burst({ dur: 0.18, vol: 0.25, freq: 3000, to: 800, q: 1.2 });
     }
 
+    teleport() {
+      this.tone({ freq: 300, to: 1800, type: 'sine', dur: 0.18, vol: 0.12 });
+      this.tone({ freq: 1800, to: 600, type: 'triangle', dur: 0.15, vol: 0.06, at: 0.12 });
+    }
+
+    gate() {
+      this.burst({ dur: 0.25, vol: 0.2, freq: 400, to: 150, q: 2 });
+      this.tone({ freq: 90, type: 'square', dur: 0.12, vol: 0.06 });
+    }
+
+    thunder() {
+      this.burst({ dur: 1.4, vol: 0.5, freq: 160, to: 50, q: 0.6 });
+    }
+
+    gust() {
+      this.burst({ dur: 1.2, vol: 0.12, freq: 900, to: 400, q: 0.5 });
+    }
+
     powerup() {
       [660, 880, 1320].forEach((f, i) => this.tone({ freq: f, type: 'triangle', dur: 0.1, vol: 0.12, at: i * 0.055 }));
     }
