@@ -79,11 +79,15 @@ window.RR = window.RR || {};
       this.campaign = !!opts.campaign;
       const absent = new Set(opts.absent || []);
       const cpu = opts.cpu || {};
-      this.tanks = arena.spawns.map((s, i) => {
-        const sp = (opts.spawns && opts.spawns[i]) || s;
+      // player tanks 0..n-1 (absent ones stay out of play), CPU enemies after
+      const n = Math.max(2, opts.players || (opts.colors ? opts.colors.length : 2));
+      this.teamPlay = this.campaign || !!opts.teams;
+      this.tanks = Array.from({ length: n }, (_, i) => {
+        const sp = (opts.spawns && opts.spawns[i]) || arena.spawns[i] || arena.spawns[0];
         const ai = cpu[i] ? Object.assign({}, C.ENEMIES[cpu[i]]) : null;
-        return new Tank(this, i, sp, opts.colors[i], {
-          team: this.campaign ? 0 : i, absent: absent.has(i), ai,
+        const team = this.campaign ? 0 : opts.teams ? opts.teams[i] : i;
+        return new Tank(this, i, sp, opts.colors[i] || C.PLAYER_COLORS[i], {
+          team, absent: absent.has(i), ai,
           speedMul: ai ? ai.speed : 1, turnRate: ai ? ai.turn : null, label: ai ? 'CPU' : null,
           hat: opts.hats ? opts.hats[i] : null,
         });
@@ -789,7 +793,7 @@ window.RR = window.RR || {};
         if (!m.armed && m.age >= C.MINE_ARM_TIME) m.armed = true;
         if (m.armed && !m.triggered) {
           for (const t of this.tanks) {
-            if (!t.alive || t.index === m.owner || (this.tanks[m.owner] && this.tanks[m.owner].team === t.team && this.campaign)) continue;
+            if (!t.alive || t.index === m.owner || (this.teamPlay && this.tanks[m.owner] && this.tanks[m.owner].team === t.team)) continue;
             if (Math.hypot(t.x - m.x, t.y - m.y) < C.MINE_TRIGGER_RADIUS) {
               m.triggered = true;
               m.fuse = Math.min(m.fuse, C.MINE_TRIGGER_FUSE);

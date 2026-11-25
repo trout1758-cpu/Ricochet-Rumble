@@ -688,5 +688,56 @@ console.log('Wii Remote');
     if (Math.abs(both.x - one.x) > 1e-6 || Math.abs(both.y - one.y) > 1e-6) throw new Error(JSON.stringify({ both, one }));
   });
 }
+{
+  const four = [0, 1, 2, 3].map((i) => C.PLAYER_COLORS[i]);
+  const idle4 = () => [idle(), idle(), idle(), idle()];
+  test('battle: four free-for-all spawns on separate floor tiles', () => {
+    for (const def of RR.ARENA_DEFS) {
+      const sp = RR.Spawns.battle(def, [0, 1, 2, 3], null);
+      const a = RR.buildArena(def);
+      sp.forEach((p, i) => {
+        if (a.grid[Math.floor(p.y) * C.COLS + Math.floor(p.x)] !== RR.TILE.FLOOR) throw new Error(`${def.name}: P${i + 1} not on floor`);
+        sp.forEach((q, j) => { if (j > i && Math.hypot(p.x - q.x, p.y - q.y) < 2) throw new Error(`${def.name}: P${i + 1} and P${j + 1} too close`); });
+      });
+    }
+  });
+  test('battle: team spawns put each side together', () => {
+    for (const def of RR.ARENA_DEFS) {
+      const sp = RR.Spawns.battle(def, [0, 1, 2, 3], [0, 1, 0, 1]);
+      const a = RR.buildArena(def);
+      sp.forEach((p, i) => {
+        if (a.grid[Math.floor(p.y) * C.COLS + Math.floor(p.x)] !== RR.TILE.FLOOR) throw new Error(`${def.name}: P${i + 1} not on floor`);
+        sp.forEach((q, j) => { if (j > i && Math.hypot(p.x - q.x, p.y - q.y) < 0.85) throw new Error(`${def.name}: P${i + 1}/P${j + 1} overlap`); });
+      });
+      if (Math.hypot(sp[0].x - sp[2].x, sp[0].y - sp[2].y) > 3.2) throw new Error(`${def.name}: team A split up`);
+    }
+  });
+  test('battle: four tanks, absent ones stay out', () => {
+    const w = makeWorld(RR.ARENA_DEFS[0], { colors: four, players: 4, absent: [3], spawns: RR.Spawns.battle(RR.ARENA_DEFS[0], [0, 1, 2], null) });
+    if (w.tanks.length !== 4) throw new Error('expected 4 tanks');
+    if (w.tanks[3].alive || !w.tanks[2].alive) throw new Error('absent/present wrong');
+    if (w.aliveTeams().size !== 3) throw new Error('free-for-all: everyone on their own team');
+  });
+  test('battle: a round ends when one team is left', () => {
+    const w = makeWorld(RR.ARENA_DEFS[0], { colors: four, players: 4, teams: [0, 1, 0, 1], spawns: RR.Spawns.battle(RR.ARENA_DEFS[0], [0, 1, 2, 3], [0, 1, 0, 1]) });
+    if (w.aliveTeams().size !== 2) throw new Error('two teams');
+    w.destroyTank(w.tanks[1], 0, 'shell');
+    if (w.aliveTeams().size !== 2) throw new Error('team B still has P4');
+    w.destroyTank(w.tanks[3], 2, 'shell');
+    step(w, 0.1, idle4());
+    const left = [...w.aliveTeams()];
+    if (left.length !== 1 || left[0] !== 0) throw new Error(JSON.stringify(left));
+  });
+  test('battle: team-mates do not set off each other\'s mines', () => {
+    const w = makeWorld(EMPTY, { colors: four, players: 4, teams: [0, 1, 0, 1],
+      spawns: [{ x: 3.5, y: 6.5, angle: 0 }, { x: 18.5, y: 2.5, angle: 0 }, { x: 8.5, y: 6.5, angle: 0 }, { x: 18.5, y: 10.5, angle: 0 }] });
+    w.mines.push({ id: 99, owner: 0, x: 8.5, y: 6.5, age: 5, fuse: C.MINE_FUSE, armed: true, triggered: false });
+    step(w, 0.2, idle4());
+    if (w.mines[0].triggered) throw new Error('team-mate triggered it');
+    w.tanks[1].x = 8.5; w.tanks[1].y = 7.0;
+    step(w, 0.05, idle4());
+    if (!w.mines.length || !w.mines[0].triggered) { if (w.mines.length) throw new Error('enemy did not trigger it'); }
+  });
+}
 console.log(`\n${passes} passed, ${failures} failed`);
 process.exit(failures ? 1 : 0);

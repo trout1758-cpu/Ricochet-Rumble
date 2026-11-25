@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Ricochet Rumble</title>
-  <meta name="description" content="A two-player toy tank duel with ricocheting shells. Use Android phones as Bluetooth controllers.">
+  <meta name="description" content="A 2–4 player toy tank battle with ricocheting shells. Use Android phones as Bluetooth controllers.">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='6' y='16' width='52' height='9' rx='4' fill='%232d2b2a'/%3E%3Crect x='6' y='39' width='52' height='9' rx='4' fill='%232d2b2a'/%3E%3Crect x='11' y='20' width='42' height='24' rx='5' fill='%23e8553f'/%3E%3Crect x='32' y='29' width='28' height='6' rx='2' fill='%23a8321f'/%3E%3Ccircle cx='32' cy='32' r='10' fill='%23ff8a6e'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,21 +16,37 @@
 
   <!-- In-match HUD -->
   <div id="hud" class="hidden">
-    <div class="hud-player" data-player="0">
-      <div class="hud-badge"><span class="hud-name">Player 1</span></div>
-      <div class="hud-wins"></div>
-      <div class="hud-ammo"><span class="hud-shells"></span><span class="hud-mines"></span></div>
-      <div class="hud-link" title="Controller connection"></div>
+    <div class="hud-side left">
+      <div class="hud-player" data-player="0">
+        <div class="hud-badge"><span class="hud-name">Player 1</span></div>
+        <div class="hud-wins"></div>
+        <div class="hud-ammo"><span class="hud-shells"></span><span class="hud-mines"></span></div>
+        <div class="hud-link" title="Controller connection"></div>
+      </div>
+      <div class="hud-player" data-player="2">
+        <div class="hud-badge"><span class="hud-name">Player 3</span></div>
+        <div class="hud-wins"></div>
+        <div class="hud-ammo"><span class="hud-shells"></span><span class="hud-mines"></span></div>
+        <div class="hud-link" title="Controller connection"></div>
+      </div>
     </div>
     <div class="hud-center">
       <div class="hud-round">Round 1</div>
       <div class="hud-arena">Arena</div>
     </div>
-    <div class="hud-player right" data-player="1">
-      <div class="hud-badge"><span class="hud-name">Player 2</span></div>
-      <div class="hud-wins"></div>
-      <div class="hud-ammo"><span class="hud-shells"></span><span class="hud-mines"></span></div>
-      <div class="hud-link" title="Controller connection"></div>
+    <div class="hud-side right">
+      <div class="hud-player right" data-player="1">
+        <div class="hud-badge"><span class="hud-name">Player 2</span></div>
+        <div class="hud-wins"></div>
+        <div class="hud-ammo"><span class="hud-shells"></span><span class="hud-mines"></span></div>
+        <div class="hud-link" title="Controller connection"></div>
+      </div>
+      <div class="hud-player right" data-player="3">
+        <div class="hud-badge"><span class="hud-name">Player 4</span></div>
+        <div class="hud-wins"></div>
+        <div class="hud-ammo"><span class="hud-shells"></span><span class="hud-mines"></span></div>
+        <div class="hud-link" title="Controller connection"></div>
+      </div>
     </div>
   </div>
 
@@ -50,19 +66,21 @@
         <circle cx="190" cy="20" r="7" fill="currentColor"/><circle cx="330" cy="95" r="7" fill="currentColor"/><circle cx="470" cy="25" r="7" fill="currentColor"/>
       </svg>
       <h1 class="logo"><span>Ricochet</span><span>Rumble</span></h1>
-      <p class="tagline">Toy tank duels · co-op campaign vs CPU tanks</p>
+      <p class="tagline">2–4 player tank battles · co-op campaign vs CPU tanks</p>
       <button id="btn-play" class="btn big">Play</button>
-      <p class="hint">Grab two Android phones with the <b>Ricochet Pad</b> controller app, or use a keyboard or gamepads.</p>
+      <p class="hint">Grab up to four phones, Wii Remotes, gamepads or a keyboard. Short on players? Add Computer tanks.</p>
     </div>
   </section>
 
   <!-- Lobby -->
   <section id="screen-lobby" class="screen hidden">
     <div class="lobby">
+      <div class="lobby-side">
       <div class="player-card" data-player="0">
         <div class="card-head">
           <input class="pname" value="Player 1" maxlength="12" spellcheck="false" aria-label="Player 1 name">
           <span class="pnum">P1</span>
+          <div class="seg team-seg teams-only hidden" aria-label="Team"><button data-t="0">A</button><button data-t="1">B</button></div>
         </div>
         <div class="colors" role="radiogroup" aria-label="Tank colour"></div>
         <div class="hats" role="radiogroup" aria-label="Hat"></div>
@@ -87,15 +105,52 @@
               <option value="gamepad">Gamepad</option>
               <option value="kbm">Keyboard + mouse</option>
               <option value="arrows">Arrow keys</option>
+              <option value="cpu">Computer</option>
             </select>
           </label>
         </div>
         <button class="btn ready-btn" disabled>Ready</button>
       </div>
+      <div class="player-card" data-player="2">
+        <div class="card-head">
+          <input class="pname" value="Player 3" maxlength="12" spellcheck="false" aria-label="Player 3 name">
+          <span class="pnum">P3</span>
+          <div class="seg team-seg teams-only hidden" aria-label="Team"><button data-t="0">A</button><button data-t="1">B</button></div>
+        </div>
+        <div class="colors" role="radiogroup" aria-label="Tank colour"></div>
+        <div class="hats" role="radiogroup" aria-label="Hat"></div>
+        <div class="tank-preview"><canvas width="220" height="120"></canvas></div>
+        <div class="qr-panel hidden">
+          <div class="qr-title">Scan with your phone’s camera</div>
+          <canvas class="qr" width="168" height="168"></canvas>
+          <div class="qr-url"></div>
+          <div class="qr-actions">
+            <button class="btn small ghost qr-other hidden">Try another address</button>
+            <button class="btn small ghost qr-cancel">Cancel</button>
+          </div>
+        </div>
+        <div class="ctrl">
+          <div class="ctrl-status"><span class="ctrl-icon"></span><div><div class="ctrl-name">No controller</div><div class="ctrl-detail">Pick one below</div></div></div>
+          <label class="ctrl-pick"><span>Controller</span>
+            <select class="ctrl-select" aria-label="Controller">
+              <option value="none">No controller</option>
+              <option value="wifi">Phone · scan QR code (Wi-Fi)</option>
+              <option value="phone">Android app (Bluetooth)</option>
+              <option value="wiimote">Wii Remote + Nunchuk</option>
+              <option value="gamepad">Gamepad</option>
+              <option value="kbm">Keyboard + mouse</option>
+              <option value="arrows">Arrow keys</option>
+              <option value="cpu">Computer</option>
+            </select>
+          </label>
+        </div>
+        <button class="btn ready-btn" disabled>Ready</button>
+      </div>
+      </div>
 
       <div class="match-panel">
         <h2>Match setup</h2>
-        <div class="seg mode-seg" id="set-mode"><button data-v="duel">⚔ Duel</button><button data-v="campaign">★ Campaign</button><button data-v="survival">∞ Survival</button></div>
+        <div class="seg mode-seg" id="set-mode"><button data-v="duel">⚔ Battle</button><button data-v="campaign">★ Campaign</button><button data-v="survival">∞ Survival</button></div>
         <div class="campaign-only campaign-info hidden">
           <p>Team up (or go solo) against <b>20 stages</b> of CPU tanks. Clear every enemy tank to advance. You share <b>3 lives</b>, with an extra one every 5 stages.</p>
           <p class="campaign-best" id="campaign-best"></p>
@@ -104,6 +159,11 @@
           <p>Endless waves of CPU tanks warp into one arena, and each wave is bigger and tougher. Knocked out? You're back in a couple of seconds while the team has <b>lives</b> left (3, plus one every 5 waves).</p>
           <p class="campaign-best" id="survival-best"></p>
         </div>
+        <div class="setting duel-only">
+          <label>Battle</label>
+          <div class="seg" id="set-battle"><button data-v="ffa">Free-for-all</button><button data-v="teams">Teams</button></div>
+        </div>
+        <p class="campaign-info duel-only battle-info">2–4 players: give players 3 and 4 a controller (or the Computer) to join in. In <b>Teams</b>, pick A or B on each card; a team-mate's mine won't go off under you (its blast still hurts, and so do stray shells!).</p>
         <div class="setting duel-only">
           <label>First to</label>
           <div class="seg" id="set-wins">
@@ -141,13 +201,15 @@
           <div class="seg" id="set-music"><button data-v="on">On</button><button data-v="off">Off</button></div>
         </div>
         <button id="btn-start" class="btn big" disabled>Start match</button>
-        <p class="start-hint" id="start-hint">Give both players a controller.</p>
+        <p class="start-hint" id="start-hint">Give at least two players a controller.</p>
       </div>
 
+      <div class="lobby-side">
       <div class="player-card" data-player="1">
         <div class="card-head">
           <input class="pname" value="Player 2" maxlength="12" spellcheck="false" aria-label="Player 2 name">
           <span class="pnum">P2</span>
+          <div class="seg team-seg teams-only hidden" aria-label="Team"><button data-t="0">A</button><button data-t="1">B</button></div>
         </div>
         <div class="colors" role="radiogroup" aria-label="Tank colour"></div>
         <div class="hats" role="radiogroup" aria-label="Hat"></div>
@@ -177,6 +239,42 @@
           </label>
         </div>
         <button class="btn ready-btn" disabled>Ready</button>
+      </div>
+      <div class="player-card" data-player="3">
+        <div class="card-head">
+          <input class="pname" value="Player 4" maxlength="12" spellcheck="false" aria-label="Player 4 name">
+          <span class="pnum">P4</span>
+          <div class="seg team-seg teams-only hidden" aria-label="Team"><button data-t="0">A</button><button data-t="1">B</button></div>
+        </div>
+        <div class="colors" role="radiogroup" aria-label="Tank colour"></div>
+        <div class="hats" role="radiogroup" aria-label="Hat"></div>
+        <div class="tank-preview"><canvas width="220" height="120"></canvas></div>
+        <div class="qr-panel hidden">
+          <div class="qr-title">Scan with your phone’s camera</div>
+          <canvas class="qr" width="168" height="168"></canvas>
+          <div class="qr-url"></div>
+          <div class="qr-actions">
+            <button class="btn small ghost qr-other hidden">Try another address</button>
+            <button class="btn small ghost qr-cancel">Cancel</button>
+          </div>
+        </div>
+        <div class="ctrl">
+          <div class="ctrl-status"><span class="ctrl-icon"></span><div><div class="ctrl-name">No controller</div><div class="ctrl-detail">Pick one below</div></div></div>
+          <label class="ctrl-pick"><span>Controller</span>
+            <select class="ctrl-select" aria-label="Controller">
+              <option value="none">No controller</option>
+              <option value="wifi">Phone · scan QR code (Wi-Fi)</option>
+              <option value="phone">Android app (Bluetooth)</option>
+              <option value="wiimote">Wii Remote + Nunchuk</option>
+              <option value="gamepad">Gamepad</option>
+              <option value="kbm">Keyboard + mouse</option>
+              <option value="arrows">Arrow keys</option>
+              <option value="cpu">Computer</option>
+            </select>
+          </label>
+        </div>
+        <button class="btn ready-btn" disabled>Ready</button>
+      </div>
       </div>
     </div>
     <p class="lobby-note" id="ble-note"></p>
@@ -220,8 +318,8 @@
         <div>
           <h3>Modes &amp; power-ups</h3>
           <ul>
-            <li><b>Duel:</b> first to win the set number of rounds. Pick <b>Computer</b> as Player 2's controller to play the CPU.</li>
-            <li><b>Co-op campaign:</b> 1–2 players vs 20 stages of CPU tanks, 3 shared lives (+1 every 5 stages). Friendly fire is on!</li>
+            <li><b>Battle:</b> 2–4 players, <b>Free-for-all</b> or <b>Teams</b> (pick A or B on each card). First to win the set number of rounds. Any player can be the <b>Computer</b>.</li>
+            <li><b>Co-op campaign:</b> 1–4 players vs 20 stages of CPU tanks, 3 shared lives (+1 every 5 stages). Friendly fire is on!</li>
             <li><b>Survival:</b> endless, growing waves in one arena. Knocked-out players respawn while the team has lives.</li>
             <li><b>Power-ups:</b> shield (blocks a hit), turbo, triple shot, super bounce, rapid fire. Drive over them.</li>
             <li><b>Hats:</b> unlock them with achievements and pick one on your player card.</li>

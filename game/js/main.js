@@ -20,19 +20,26 @@
   // ---------------------------------------------------------------------------
   const DEFAULTS = {
     mode: 'duel', powerups: true, bestStage: 0, bestWave: 0,
-    hats: ['none', 'none'], unlocked: ['none'], totals: { powerups: 0, kills: 0 },
+    hats: ['none', 'none', 'none', 'none'], unlocked: ['none'], totals: { powerups: 0, kills: 0 },
     wins: 5, arena: 'rotation', ammo: 'classic', mines: true, music: true, effects: true, replay: true,
-    names: ['Player 1', 'Player 2'], colors: [0, 1],
+    names: ['Player 1', 'Player 2', 'Player 3', 'Player 4'], colors: [0, 1, 2, 3],
+    battle: 'ffa', teams: [0, 1, 0, 1],
   };
+  const NP = 4; // up to four players
+  // Team colours (rings under the tanks, HUD outlines)
+  const TEAMS = [{ name: 'Team A', color: '#ff4fa3', dark: '#b0266c' }, { name: 'Team B', color: '#29c8ff', dark: '#137fb0' }];
   const settings = loadSettings();
 
   function loadSettings() {
     try {
       const s = JSON.parse(localStorage.getItem('ricochet-rumble') || '{}');
+      const fill = (arr, def) => def.map((d, i) => (Array.isArray(arr) && arr[i] != null ? arr[i] : d));
       return Object.assign({}, DEFAULTS, s, {
-        names: Array.isArray(s.names) ? s.names.slice(0, 2) : DEFAULTS.names.slice(),
-        colors: Array.isArray(s.colors) ? s.colors.slice(0, 2) : DEFAULTS.colors.slice(),
-        hats: Array.isArray(s.hats) ? s.hats.slice(0, 2) : DEFAULTS.hats.slice(),
+        names: fill(s.names, DEFAULTS.names),
+        colors: fill(s.colors, DEFAULTS.colors),
+        hats: fill(s.hats, DEFAULTS.hats),
+        teams: fill(s.teams, DEFAULTS.teams).map((t) => (t ? 1 : 0)),
+        battle: s.battle === 'teams' ? 'teams' : 'ffa',
         unlocked: Array.isArray(s.unlocked) ? s.unlocked.slice() : DEFAULTS.unlocked.slice(),
         totals: Object.assign({}, DEFAULTS.totals, s.totals || {}),
       });
@@ -72,7 +79,7 @@
   // ---------------------------------------------------------------------------
   // State
   // ---------------------------------------------------------------------------
-  const players = [0, 1].map((i) => ({
+  const players = Array.from({ length: NP }, (_, i) => ({
     index: i,
     name: settings.names[i] || `Player ${i + 1}`,
     colorIndex: U.clamp(settings.colors[i] | 0, 0, C.PLAYER_COLORS.length - 1),
@@ -84,7 +91,18 @@
     edge: { fire: 0, mine: 0 },
     preview: { angle: 0, turret: 0, treadPhase: 0, recoil: 0 },
   }));
-  if (players[0].colorIndex === players[1].colorIndex) players[1].colorIndex = (players[0].colorIndex + 1) % C.PLAYER_COLORS.length;
+  // every player gets a different colour
+  players.forEach((p, i) => {
+    while (players.some((q, j) => j < i && q.colorIndex === p.colorIndex)) p.colorIndex = (p.colorIndex + 1) % C.PLAYER_COLORS.length;
+  });
+
+  const isBattle = () => settings.mode === 'duel';
+  const teamsOn = () => isBattle() && settings.battle === 'teams';
+  const teamOf = (i) => settings.teams[i] ? 1 : 0;
+  const isCpu = (p) => !!(p.controller && p.controller.kind === 'cpu');
+  // the players taking part (those with a controller)
+  const activeSlots = () => players.filter((p) => p.controller).map((p) => p.index);
+  const others = (i) => players.filter((q) => q.index !== i);
 
   const game = {
     state: 'title',   // title | lobby | intro | play | grace | result | over
@@ -98,6 +116,7 @@
     gamepadWait: null,
     qrWait: null,
     matchWinner: null,
+    slots: [0, 1],
     goShown: false,
     mineBlink: new Map(),
     resultsAt: 0,
@@ -169,7 +188,7 @@
   }
 
   function setBackdropWorld(idx) {
-    const w = new RR.World(RR.ARENA_DEFS[idx], { ammo: ammo(), minesEnabled: settings.mines, effects: settings.effects, colors: [colorOf(0), colorOf(1)] });
+    const w = new RR.World(RR.ARENA_DEFS[idx], { ammo: ammo(), minesEnabled: settings.mines, effects: settings.effects, colors: [colorOf(0), colorOf(1)], players: 2 });
     game.world = w;
     renderer.setWorld(w);
   }
@@ -305,9 +324,10 @@
     const segs = {
       '#set-mode': (v) => {
         settings.mode = v;
-        // the computer opponent is only for duels
-        players.forEach((p, i) => { if (v !== 'duel' && p.controller && p.controller.kind === 'cpu') removeController(i, true); });
+        // computer opponents are only for battles
+        players.forEach((p, i) => { if (v !== 'duel' && isCpu(p)) removeController(i, true); });
       },
+      '#set-battle': (v) => { settings.battle = v === 'teams' ? 'teams' : 'ffa'; },
       '#set-powerups': (v) => { settings.powerups = v === 'on'; },
       '#set-wins': (v) => { settings.wins = Number(v); },
       '#set-ammo': (v) => { settings.ammo = v; },
@@ -338,6 +358,15 @@
         saveSettings();
       });
       nameIn.addEventListener('keydown', (e) => { if (e.key === 'Enter') nameIn.blur(); });
+      $$('.team-seg button', card).forEach((b) => {
+        b.addEventListener('click', () => {
+          settings.teams[i] = Number(b.dataset.t) ? 1 : 0;
+          saveSettings();
+          audio.click();
+          b.blur();
+          refreshLobby();
+        });
+      });
 
       const colors = $('.colors', card);
       C.PLAYER_COLORS.forEach((col, ci) => {
@@ -478,12 +507,14 @@
     $$('#set-mode button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === settings.mode)));
     $$('#set-powerups button').forEach((b) => b.setAttribute('aria-pressed', String((b.dataset.v === 'on') === settings.powerups)));
     $$('.duel-only').forEach((el) => el.classList.toggle('hidden', coop));
+    $$('#set-battle button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === settings.battle)));
+    $$('.teams-only').forEach((el) => el.classList.toggle('hidden', !teamsOn()));
     $$('.no-campaign').forEach((el) => el.classList.toggle('hidden', campaign));
     $$('.campaign-only').forEach((el) => el.classList.toggle('hidden', !campaign));
     $$('.survival-only').forEach((el) => el.classList.toggle('hidden', !survival));
     $('#campaign-best').textContent = settings.bestStage > 0 ? `Best so far: stage ${settings.bestStage} of ${RR.Campaign.count}.` : '';
     $('#survival-best').textContent = settings.bestWave > 0 ? `Best so far: wave ${settings.bestWave}.` : '';
-    $('.match-panel h2').textContent = campaign ? 'Co-op campaign' : survival ? 'Survival' : 'Match setup';
+    $('.match-panel h2').textContent = campaign ? 'Co-op campaign' : survival ? 'Survival' : teamsOn() ? 'Team battle' : 'Free-for-all';
     $('#btn-start').textContent = campaign ? 'Start campaign' : survival ? 'Start survival' : 'Start match';
     $$('#set-wins button').forEach((b) => b.setAttribute('aria-pressed', String(Number(b.dataset.v) === settings.wins)));
     $$('#set-ammo button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === settings.ammo)));
@@ -496,16 +527,28 @@
       : settings.arena === 'rotation' || settings.arena === 'random' ? 'Most themes have their own arena effect: ice, lava, black holes and more.'
         : mech ? `Arena effect: ${mech.name}. ${mech.desc}.` : 'No special arena effect here.';
     $('#set-arena').value = settings.arena;
-    RR.drawArenaPreview($('#arena-preview'), RR.ARENA_DEFS[previewArenaIndex()], [colorOf(0), colorOf(1)]);
+    {
+      const def = RR.ARENA_DEFS[previewArenaIndex()];
+      let slots = activeSlots();
+      if (slots.length < 2) slots = [0, 1];
+      const spots = coop ? RR.Campaign.spawnsFor(def) : RR.Spawns.battle(def, slots, teamsOn() ? settings.teams : null);
+      const dots = (coop ? slots.map((i) => ({ sp: spots[i], col: colorOf(i) })) : slots.map((i) => ({ sp: spots[i], col: colorOf(i), ring: teamsOn() ? TEAMS[teamOf(i)].color : null })));
+      RR.drawArenaPreview($('#arena-preview'), def, null, dots);
+    }
 
     players.forEach((p, i) => {
       const card = $(`.player-card[data-player="${i}"]`);
-      const other = players[1 - i];
       $$('.colors button', card).forEach((b) => {
         const ci = Number(b.dataset.ci);
         b.setAttribute('aria-checked', String(ci === p.colorIndex));
-        b.disabled = ci === other.colorIndex;
+        b.disabled = others(i).some((q) => q.colorIndex === ci);
       });
+      $$('.team-seg button', card).forEach((b) => b.setAttribute('aria-pressed', String(Number(b.dataset.t) === teamOf(i))));
+      card.style.setProperty('--tc', TEAMS[teamOf(i)].color);
+      card.classList.toggle('teamed', teamsOn());
+      const waitingHere = (game.qrWait && game.qrWait.player === i) || (game.gamepadWait && game.gamepadWait.player === i);
+      // players 3 and 4 fold away until someone picks a controller for them
+      card.classList.toggle('idle', i >= 2 && !p.controller && !waitingHere);
       const ctl = p.controller;
       const icon = $('.ctrl-icon', card);
       const name = $('.ctrl-name', card);
@@ -545,9 +588,20 @@
     const ok = canStart();
     $('#btn-start').disabled = !ok;
     let hint;
-    if (!ok) hint = coop ? 'Give at least one player a controller.' : 'Give both players a controller (or make Player 2 the computer).';
+    if (!ok) {
+      const part = players.filter((p) => p.controller);
+      if (coop) hint = 'Give at least one player a controller.';
+      else if (part.length < 2) hint = 'Battles need 2–4 players. Give another player a controller (or the Computer).';
+      else if (!part.some((p) => !isCpu(p))) hint = 'At least one human player, please!';
+      else hint = 'Put players on both teams.';
+    }
     else if (game.lobbyCountdown > 0) hint = `Starting in ${Math.ceil(game.lobbyCountdown)}…`;
-    else hint = coop && players.filter((p) => p.controller).length === 1 ? 'Solo run! Press fire, or click Start.' : 'Press fire on every controller, or click Start.';
+    else if (coop && players.filter((p) => p.controller).length === 1) hint = 'Solo run! Press fire, or click Start.';
+    else if (!coop) {
+      const n = activeSlots().length;
+      const vs = teamsOn() ? [0, 1].map((t) => activeSlots().filter((k) => teamOf(k) === t).length).join(' vs ') : `${n}-player free-for-all`;
+      hint = `${vs} · press fire on every controller, or click Start.`;
+    } else hint = 'Press fire on every controller, or click Start.';
     $('#start-hint').textContent = hint;
     $$('.ctrl-select option[value="cpu"]').forEach((o) => { o.hidden = coop; o.disabled = coop; });
   }
@@ -563,11 +617,13 @@
   function canStart() {
     const humans = players.filter((p) => p.controller && p.controller.kind !== 'cpu');
     if (settings.mode !== 'duel') return humans.length >= 1;
-    return players.every((p) => p.controller) && humans.length >= 1;
+    const part = players.filter((p) => p.controller);
+    if (part.length < 2 || humans.length < 1) return false;
+    if (teamsOn()) return new Set(part.map((p) => teamOf(p.index))).size === 2;
+    return true;
   }
 
   async function chooseController(i, src) {
-    const other = players[1 - i];
     game.gamepadWait = null;
     game.qrWait = null;
     if (src === 'wifi') {
@@ -584,7 +640,7 @@
       players[i].ready = true;
       refreshLobby();
     } else if (src === 'kbm' || src === 'arrows') {
-      if (other.controller && other.controller.kind === src) removeController(1 - i, true);
+      others(i).forEach((q) => { if (q.controller && q.controller.kind === src) removeController(q.index, true); });
       assignController(i, src === 'kbm' ? new RR.KeyboardMouseController() : new RR.KeyboardArrowsController());
     } else if (src === 'wiimote') {
       const problem = RR.Wiimote.problem();
@@ -613,9 +669,9 @@
       try {
         toast('Pick your phone in the browser’s Bluetooth list. (Open the controller app first.)', colorOf(i).body, 5000);
         const ctl = await RR.BLE.connect();
-        if (other.controller && other.controller.kind === 'phone' && other.controller.device && other.controller.device.id === ctl.device.id) {
-          removeController(1 - i, true);
-        }
+        others(i).forEach((q) => {
+          if (q.controller && q.controller.kind === 'phone' && q.controller.device && q.controller.device.id === ctl.device.id) removeController(q.index, true);
+        });
         assignController(i, ctl);
       } catch (err) {
         if (err && err.name === 'NotFoundError') return; // user closed the picker
@@ -649,6 +705,7 @@
     p.controller.dispose();
     p.controller = null;
     p.ready = false;
+    p.wasConnected = false;
     if (!silent) audio.disconnect();
     refreshLobby();
   }
@@ -777,7 +834,11 @@
     game.round = 0;
     game.lastArena = -1;
     game.matchWinner = null;
+    game.slots = activeSlots();
+    game.teams = settings.mode === 'duel' && settings.battle === 'teams' ? players.map((p) => teamOf(p.index)) : null;
+    game.teamWins = [0, 0];
     players.forEach((p) => {
+      p.wasConnected = !!(p.controller && p.controller.connected);
       p.wins = 0;
       p.ready = false;
       p.stats = newStats();
@@ -798,13 +859,20 @@
     nextRound();
   }
 
-  function worldOpts() {
+  function worldOpts(def) {
     const cpu = {};
-    players.forEach((p, i) => { if (p.controller && p.controller.kind === 'cpu') cpu[i] = 'rival'; });
-    return {
-      ammo: ammo(), minesEnabled: settings.mines, effects: settings.effects, colors: [colorOf(0), colorOf(1)],
-      powerups: settings.powerups, cpu, hats: [hatOf(0), hatOf(1)],
+    players.forEach((p, i) => { if (isCpu(p)) cpu[i] = 'rival'; });
+    const o = {
+      ammo: ammo(), minesEnabled: settings.mines, effects: settings.effects,
+      colors: players.map((_, i) => colorOf(i)), hats: players.map((_, i) => hatOf(i)),
+      powerups: settings.powerups, cpu, players: NP,
+      absent: players.filter((p) => !game.slots.includes(p.index)).map((p) => p.index),
     };
+    if (def && !game.campaign && !game.survival) {
+      o.teams = game.teams;
+      o.spawns = RR.Spawns.battle(def, game.slots, game.teams);
+    }
+    return o;
   }
 
   // ---- co-op campaign ------------------------------------------------------------
@@ -1046,7 +1114,7 @@
     const idx = pickArena();
     game.lastArena = idx;
     const def = RR.ARENA_DEFS[idx];
-    const w = new RR.World(def, worldOpts());
+    const w = new RR.World(def, worldOpts(def));
     w.frozen = true;
     game.world = w;
     game.acc = 0;
@@ -1077,35 +1145,51 @@
       return;
     }
     const alive = game.world.aliveTanks();
-    let winner = null;
-    if (alive.length === 1) {
-      winner = alive[0].index;
+    if (alive.length && game.teams) {
+      const team = alive[0].team;
+      game.teamWins[team]++;
+      const members = game.slots.filter((i) => game.teams[i] === team);
+      members.forEach((i) => { players[i].wins++; rumble(i, 160, 0.6); });
+      banner(`${TEAMS[team].name} scores!`, scoreLine(), TEAMS[team].dark);
+      audio.roundWin();
+      if (game.teamWins[team] >= settings.wins) game.matchWinner = { team, members };
+    } else if (alive.length) {
+      const winner = alive[0].index;
       players[winner].wins++;
-      const col = colorOf(winner);
-      banner(`${players[winner].name} scores!`, `${players[0].wins} – ${players[1].wins}`, col.dark);
+      banner(`${players[winner].name} scores!`, scoreLine(), colorOf(winner).dark);
       audio.roundWin();
       rumble(winner, 160, 0.6);
+      if (players[winner].wins >= settings.wins) game.matchWinner = { team: null, members: [winner] };
     } else {
       banner('Draw!', 'Nobody scores', '#2a2230');
       audio.roundDraw();
     }
     game.state = 'result';
     game.timer = C.ROUND_RESULT;
-    const champ = players.find((p) => p.wins >= settings.wins);
-    game.matchWinner = champ ? champ.index : null;
+  }
+
+  // "3 – 1" for two, "3 · 1 · 0" for more, "A 3 – 1 B" for teams
+  function scoreLine() {
+    if (game.teams) return `${TEAMS[0].name} ${game.teamWins[0]} – ${game.teamWins[1]} ${TEAMS[1].name}`;
+    return game.slots.map((i) => players[i].wins).join(game.slots.length === 2 ? ' – ' : ' · ');
   }
 
   function finishMatch() {
     game.state = 'over';
     hideBanner();
-    const w = game.matchWinner;
-    const loser = players[1 - w];
-    if (loser.controller && loser.controller.kind === 'cpu' && players[w].controller && players[w].controller.kind !== 'cpu') unlockHat('tophat');
-    const col = colorOf(w);
+    const mw = game.matchWinner;
+    const w = mw.members[0];
+    const beatCpu = game.slots.some((i) => !mw.members.includes(i) && isCpu(players[i]));
+    if (beatCpu && mw.members.some((i) => players[i].controller && !isCpu(players[i]))) unlockHat('tophat');
     const panel = $('#screen-results .results');
-    $('.winner', panel).textContent = `${players[w].name} wins!`;
-    $('.winner', panel).style.color = col.dark;
-    $('.final-score', panel).textContent = `${players[0].wins} – ${players[1].wins}`;
+    if (mw.team != null) {
+      $('.winner', panel).textContent = `${TEAMS[mw.team].name} wins!`;
+      $('.winner', panel).style.color = TEAMS[mw.team].dark;
+    } else {
+      $('.winner', panel).textContent = `${players[w].name} wins!`;
+      $('.winner', panel).style.color = colorOf(w).dark;
+    }
+    $('.final-score', panel).textContent = scoreLine();
     const rows = [
       ['Rounds won', (p) => p.wins],
       ['Shells fired', (p) => p.stats.shots],
@@ -1115,13 +1199,15 @@
       ['Trick shots', (p) => p.stats.trick],
       ['Own goals', (p) => p.stats.selfKills],
     ];
-    const head = `<thead><tr><th></th>${players.map((p, i) => `<th style="color:${colorOf(i).dark}">${escapeHtml(p.name)}</th>`).join('')}</tr></thead>`;
-    const body = rows.map(([label, f]) => `<tr><th>${label}</th>${players.map((p) => `<td>${f(p)}</td>`).join('')}</tr>`).join('');
+    const inIt = game.slots.map((i) => players[i]);
+    const tag = (p) => (game.teams ? ` <small style="color:${TEAMS[game.teams[p.index]].dark}">${TEAMS[game.teams[p.index]].name.replace('Team ', '')}</small>` : '');
+    const head = `<thead><tr><th></th>${inIt.map((p) => `<th style="color:${colorOf(p.index).dark}">${escapeHtml(isCpu(p) ? 'Computer' : p.name)}${tag(p)}</th>`).join('')}</tr></thead>`;
+    const body = rows.map(([label, f]) => `<tr><th>${label}</th>${inIt.map((p) => `<td>${f(p)}</td>`).join('')}</tr>`).join('');
     $('.stats', panel).innerHTML = head + '<tbody>' + body + '</tbody>';
     show('#screen-results', true);
     game.resultsAt = performance.now();
     audio.matchWin();
-    rumble(w, 500, 0.8);
+    mw.members.forEach((i) => rumble(i, 500, 0.8));
   }
 
   $('#btn-rematch').addEventListener('click', () => { audio.click(); startMatch(); });
@@ -1249,7 +1335,7 @@
             players[ev.by].stats.hits++;
             if (w.tanks[ev.player].ai) countTotal('kills');
           }
-          if (game.survival && ev.player < 2 && game.state === 'play') onSurvivalDeath(ev.player);
+          if (game.survival && ev.player < NP && game.state === 'play') onSurvivalDeath(ev.player);
           rumble(ev.player, 450, 1);
           if (ev.by != null && ev.by !== ev.player) rumble(ev.by, 120, 0.7);
           calloutFor(ev, true);
@@ -1376,7 +1462,7 @@
       $(`.player-card[data-player="${i}"] .pname`).value = name;
     }
     const ci = profile.color;
-    if (ci < C.PLAYER_COLORS.length && ci !== players[1 - i].colorIndex && ci !== p.colorIndex) {
+    if (ci < C.PLAYER_COLORS.length && !others(i).some((q) => q.colorIndex === ci) && ci !== p.colorIndex) {
       p.colorIndex = ci;
       settings.colors[i] = ci;
       ctl.assign(i, colorOf(i).rgb);
@@ -1496,10 +1582,18 @@
   // ---------------------------------------------------------------------------
   // HUD
   // ---------------------------------------------------------------------------
-  const hudCache = ['', ''];
+  const hudCache = Array(NP).fill('');
 
   function buildHudPips() {
-    hudCache[0] = hudCache[1] = '';
+    hudCache.fill('');
+    const inGame = (i) => game.slots.includes(i);
+    players.forEach((p, i) => {
+      const el = $(`.hud-player[data-player="${i}"]`);
+      el.classList.toggle('out', !inGame(i));
+      el.classList.toggle('teamed', !!game.teams);
+      if (game.teams) el.style.setProperty('--tc', TEAMS[game.teams[i]].color);
+    });
+    $('#hud').classList.toggle('quad', players.some((p, i) => i >= 2 && inGame(i)));
   }
 
   function updateHud() {
@@ -1523,7 +1617,7 @@
       const t = w.tanks[i];
       const maxShells = t ? t.maxShells() : w.ammo.max;
       const kills = p.stats ? p.stats.hits : 0;
-      const cpu = !!(p.controller && p.controller.kind === 'cpu');
+      const cpu = isCpu(p);
       const powers = t ? ['shield', 'boost', 'spread', 'bouncy', 'rapid'].filter((k) => (k === 'shield' ? t.shield : t[k] > 0)) : [];
       const absent = !!(t && t.absent);
       const coop = !!(game.campaign || game.survival);
@@ -1532,7 +1626,7 @@
       hudCache[i] = key;
       const el = $(`.hud-player[data-player="${i}"]`);
       el.classList.toggle('absent', absent);
-      $('.hud-name', el).textContent = cpu ? 'Computer' : p.name;
+      $('.hud-name', el).textContent = cpu ? (players.filter(isCpu).length > 1 ? `CPU ${i + 1}` : 'Computer') : p.name;
       $('.hud-wins', el).innerHTML = coop
         ? `<b class="hud-kills">${kills} <small>tank${kills === 1 ? '' : 's'}</small></b>`
         : Array.from({ length: settings.wins }, (_, k) => `<i class="${k < p.wins ? 'on' : ''}"></i>`).join('');
@@ -1558,13 +1652,14 @@
       const w = game.world;
       const live = inMatch() && w;
       c.status(
-        state, p.wins, players[1 - i].wins, settings.wins,
+        state, p.wins, Math.max(0, ...others(i).filter((q) => game.slots.includes(q.index) && !(game.teams && game.teams[q.index] === game.teams[i])).map((q) => q.wins)), settings.wins,
         live ? w.shellsLeft(i) : ammo().max,
         live ? w.minesLeft(i) : (settings.mines ? C.MINE_MAX : 0),
         p.ready,
         ammo().max,
       );
-      if (c.lobby) c.lobby(p.colorIndex, players[1 - i].colorIndex, p.name);
+      const rival = others(i).find((q) => q.controller) || others(i)[0];
+      if (c.lobby) c.lobby(p.colorIndex, rival.colorIndex, p.name);
     });
   }
 
@@ -1656,5 +1751,5 @@
   requestAnimationFrame(frame);
 
   // Exposed for debugging and automated tests.
-  RR.game = { game, players, settings, renderer, audio, startMatch, goLobby, assignController, togglePause, chooseController, refreshLobby, nextRound };
+  RR.game = { game, players, TEAMS, settings, renderer, audio, startMatch, goLobby, assignController, togglePause, chooseController, refreshLobby, nextRound };
 })();

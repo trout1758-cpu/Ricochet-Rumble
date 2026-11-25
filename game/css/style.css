@@ -547,3 +547,48 @@ body.letterbox #letterbox-bars i { height: 7vh; }
 .ctrl-pick { display: flex; flex-direction: column; gap: 4px; font: 700 13px system-ui, sans-serif; color: var(--soft, #7a6a62); }
 .ctrl-select { width: 100%; font: 700 15px system-ui, sans-serif; padding: 8px 10px; border-radius: 10px; border: 2px solid var(--edge, #e2d3ba); background: #fff; color: var(--ink); cursor: pointer; }
 .ctrl-select:focus-visible { outline: 2px solid var(--ink); }
+
+/* ---------- 4 players ---------- */
+.lobby-side { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.lobby-side .player-card { gap: 8px; padding: 12px 14px 14px; }
+.lobby-side .player-card .pname { font-size: 22px; }
+.lobby-side .tank-preview canvas { max-width: 170px; }
+.player-card.idle { flex: 0 0 auto; }
+.player-card.idle > :not(.card-head):not(.ctrl) { display: none; }
+.player-card.idle .ctrl-status { display: none; }
+.player-card.idle { opacity: 0.88; }
+.lobby-side .hats { gap: 3px; margin-top: 0; flex-wrap: nowrap; }
+.lobby-side .hats button { width: 28px; height: 28px; border-radius: 7px; flex: 0 0 auto; }
+.lobby-side .hats button canvas { width: 24px; height: 24px; }
+.lobby-side .colors { gap: 6px; }
+.lobby-side .colors button { width: 30px; height: 30px; }
+.lobby-side .tank-preview { padding: 0; }
+.lobby-side .tank-preview canvas { max-width: 130px; }
+.lobby-side .ctrl-status { padding: 6px 8px; }
+.lobby-side .ready-btn { padding-top: 8px; padding-bottom: 8px; font-size: 18px; }
+.team-seg { padding: 2px; flex-wrap: nowrap; }
+.team-seg button { padding: 3px 10px; font-size: 14px; }
+.team-seg button[data-t="0"][aria-pressed="true"] { background: #ff4fa3; color: #fff; }
+.team-seg button[data-t="1"][aria-pressed="true"] { background: #29c8ff; color: #fff; }
+.player-card.teamed { box-shadow: 0 0 0 4px var(--tc), 0 8px 0 var(--edge), 0 16px 30px rgba(0, 0, 0, 0.35); }
+.battle-info { font-size: 13px; margin: 0; }
+
+.hud-side { display: flex; flex-direction: column; gap: 2px; justify-content: center; min-width: 0; }
+.hud-side.right { align-items: flex-end; }
+.hud-player.out { display: none; }
+.hud-player.teamed .hud-badge { box-shadow: 0 0 0 3px var(--tc), 0 4px 0 var(--pcd), 0 6px 12px rgba(0, 0, 0, 0.3); }
+#hud.quad .hud-player { gap: 8px; }
+#hud.quad .hud-badge { padding: 1px 9px 2px; border-radius: 9px; }
+#hud.quad .hud-name { font-size: clamp(12px, 1.7vh, 18px); }
+#hud.quad .hud-wins i { width: 10px; height: 10px; }
+#hud.quad .hud-ammo { padding: 2px 7px; }
+#hud.quad .hud-shells i { transform: scale(0.8); }
+#hud.quad .hud-mines i { transform: scale(0.8); }
+#hud.quad .hud-kills { font-size: 14px; }
+@media (max-width: 1240px) {
+  .lobby { grid-template-columns: 1fr 1fr; }
+  .match-panel { grid-column: 1 / -1; order: 3; }
+}
+@media (max-width: 620px) {
+  .lobby { grid-template-columns: 1fr; }
+}

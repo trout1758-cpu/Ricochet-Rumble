@@ -1,6 +1,6 @@
 # Ricochet Rumble
 
-A toy-tank game for the big screen (two-player duels and a co-op campaign against CPU tanks), with **phones as controllers**: any phone over Wi-Fi by scanning a QR code, or Android phones over Bluetooth with the Ricochet Pad app.
+A toy-tank game for the big screen (2–4 player battles, free-for-all or in teams, and a co-op campaign against CPU tanks), with **phones as controllers**: any phone over Wi-Fi by scanning a QR code, or Android phones over Bluetooth with the Ricochet Pad app.
 
 ![Ricochet Rumble gameplay](docs/screenshot.jpg)
 
@@ -20,9 +20,12 @@ Either player can also use a **Wii Remote + Nunchuk** (classic Wii Play controls
 
 ### Game modes
 
-- **Duel:** head to head, first to 3, 5 or 7 rounds. No second player? Pick **Computer** in Player 2's **Controller** menu to play against a CPU tank that banks shots off walls and lays mines.
+- **Battle:** 2 to 4 players, first to 3, 5 or 7 rounds.
+  - **Free-for-all:** last tank standing scores. With 3 or 4 players, the extra tanks start at the top and bottom of the arena.
+  - **Teams:** pick **A** or **B** on each player card. Team-mates start side by side and wear a coloured ring (pink for A, blue for B). The last team with a tank left wins the round, and every member scores. A team-mate's mine won't go off when you drive over it, but its blast and stray shells still hurt.
+  - Players 3 and 4 fold away in the lobby until you pick a controller for them. Any player can be the **Computer** (a CPU tank that banks shots off walls and lays mines), so you can play 1 vs 3 CPUs, or you and a CPU against two friends.
 - **Survival:** endless waves; see below.
-- **Co-op campaign:** one or two players team up against **20 stages** of CPU tanks.
+- **Co-op campaign:** one to four players team up against **20 stages** of CPU tanks.
   Clear every enemy tank to move on. You share 3 lives and get an extra life every 5 stages.
   A stage is lost when every player's tank is knocked out; you then retry it.
   Watch out for friendly fire.
@@ -55,7 +58,7 @@ Earn hats and wear them: pick one under your colour on your player card. Locked 
 | Hat | Unlock |
 | --- | --- |
 | Party hat | Pull off a trick shot |
-| Top hat | Beat the Computer in a duel |
+| Top hat | Beat the Computer in a battle |
 | Cowboy hat | Clear campaign stage 5 |
 | Propeller cap | Reach wave 5 in Survival |
 | Viking helmet | Grab 25 power-ups (in total) |
@@ -64,7 +67,7 @@ Earn hats and wear them: pick one under your colour on your player card. Locked 
 
 ### Power-ups
 
-With **Power-ups** on (lobby), glowing pickups appear in the arena every so often. In a duel they arrive in mirrored pairs, and grabbing one makes its twin vanish.
+With **Power-ups** on (lobby), glowing pickups appear in the arena every so often. In a battle they arrive in mirrored pairs, and grabbing one makes its twin vanish.
 Drive over one to take it:
 
 | Power-up | Colour | Effect |
@@ -147,7 +150,7 @@ If the phone drops off the Wi-Fi, the game pauses and the phone reconnects to th
 3. Chrome opens a Bluetooth list.
    Pick your phone and click **Pair** / **Connect**.
 4. The phone's pill turns into **PLAYER 1** in that tank's colour, and it buzzes.
-5. Repeat on the Player 2 card with the second phone, or pick another controller type.
+5. Repeat on the other player cards (up to 4 players) with more phones, or pick another controller type.
 6. Press **fire** on both controllers to ready up (tap the right half of the phone screen), or click **Start match**.
 
 Try the sticks in the lobby: the tank picture on your card follows your phone, so you can check it works before the match starts.

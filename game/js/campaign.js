@@ -19,17 +19,85 @@ window.RR = window.RR || {};
 
   const STAGES = C.CAMPAIGN.STAGES;
 
-  // Player 1 at the arena's own start, player 2 right next to them.
-  function spawnsFor(def) {
-    const arena = RR.buildArena(def);
+  const NEAR = [[0, 1], [0, -1], [1, 0], [-1, 0], [1, 1], [1, -1], [-1, 1], [-1, -1], [0, 2], [0, -2], [2, 0], [-2, 0], [1, 2], [1, -2], [2, 1], [2, -1]];
+
+  function tiles(arena) {
     const grid = arena.grid;
     const tile = (c, r) => (c < 0 || r < 0 || c >= C.COLS || r >= C.ROWS ? T.WALL : grid[r * C.COLS + c]);
-    const p1 = arena.spawns[0];
-    for (const [dc, dr] of [[0, 1], [0, -1], [1, 0], [-1, 0], [1, 1], [1, -1], [0, 2], [0, -2], [2, 0], [-1, 1], [-1, -1]]) {
-      const c = Math.floor(p1.x) + dc, r = Math.floor(p1.y) + dr;
-      if (tile(c, r) === T.FLOOR) return [p1, { x: c + 0.5, y: r + 0.5, angle: p1.angle }];
+    const roomy = (c, r) => {
+      for (const [dc, dr] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) if (tile(c + dc, r + dr) !== T.FLOOR) return false;
+      return true;
+    };
+    return { tile, roomy };
+  }
+
+  // Up to `n` start spots packed round `origin` (origin first), avoiding `taken`.
+  // Team-mates in battles stand a little further apart.
+  const WIDE = [[0, 2], [0, -2], [2, 0], [-2, 0], [2, 2], [2, -2], [-2, 2], [-2, -2], ...NEAR];
+
+  function cluster(arena, origin, n, taken = [], flipX = false, near = NEAR) {
+    const { tile } = tiles(arena);
+    const out = [origin];
+    const used = [...taken, origin];
+    for (const [dc0, dr] of near) {
+      if (out.length >= n) break;
+      const dc = flipX ? -dc0 : dc0;
+      const c = Math.floor(origin.x) + dc, r = Math.floor(origin.y) + dr;
+      const p = { x: c + 0.5, y: r + 0.5, angle: origin.angle };
+      if (tile(c, r) !== T.FLOOR || used.some((q) => Math.hypot(q.x - p.x, q.y - p.y) < 0.9)) continue;
+      out.push(p);
+      used.push(p);
     }
-    return [p1, { x: p1.x, y: p1.y + 0.8, angle: p1.angle }];
+    while (out.length < n) out.push({ x: origin.x, y: origin.y + 0.8 * out.length, angle: origin.angle });
+    return out;
+  }
+
+  // Nearest comfortable floor tile to (x, y).
+  function nearestFloor(arena, x, y) {
+    const { tile, roomy } = tiles(arena);
+    let best = null, bd = Infinity;
+    for (let pass = 0; pass < 2 && !best; pass++) {
+      for (let r = 0; r < C.ROWS; r++) {
+        for (let c = 0; c < C.COLS; c++) {
+          if (tile(c, r) !== T.FLOOR || (pass === 0 && !roomy(c, r))) continue;
+          const d = Math.hypot(c + 0.5 - x, r + 0.5 - y);
+          if (d < bd) { bd = d; best = { x: c + 0.5, y: r + 0.5 }; }
+        }
+      }
+    }
+    return best;
+  }
+
+  // Co-op: everyone starts together at the arena's player-1 start.
+  function spawnsFor(def, n = 4) {
+    const arena = RR.buildArena(def);
+    return cluster(arena, arena.spawns[0], n);
+  }
+
+  // Battle spawns for the players taking part (array of player indices).
+  //   teams: null for free-for-all, else teams[i] = 0 or 1 for each player.
+  // Free-for-all uses the arena's two starts plus a top and a bottom spot
+  // (the bottom one the point-mirror of the top); teams start side by side.
+  // Returns spawns indexed by player index.
+  function battle(def, slots, teams) {
+    const arena = RR.buildArena(def);
+    const out = [];
+    if (teams) {
+      const a = slots.filter((i) => teams[i] === 0), b = slots.filter((i) => teams[i] !== 0);
+      const ca = cluster(arena, arena.spawns[0], a.length, [], false, WIDE);
+      const cb = cluster(arena, arena.spawns[1], b.length, ca, true, WIDE);
+      a.forEach((i, k) => { out[i] = ca[k]; });
+      b.forEach((i, k) => { out[i] = cb[k]; });
+      return out;
+    }
+    const top = nearestFloor(arena, C.COLS / 2 - 0.5, 1.5) || arena.spawns[0];
+    const bot = nearestFloor(arena, C.COLS - top.x, C.ROWS - top.y) || arena.spawns[1];
+    const spots = [
+      arena.spawns[0], arena.spawns[1],
+      { x: top.x, y: top.y, angle: Math.PI / 2 }, { x: bot.x, y: bot.y, angle: -Math.PI / 2 },
+    ];
+    slots.forEach((i, k) => { out[i] = spots[k % spots.length]; });
+    return out;
   }
 
   // Stage n (1-based) -> { def, enemies, spawns }
@@ -44,14 +112,8 @@ window.RR = window.RR || {};
       for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) if (Math.abs(dr) + Math.abs(dc) <= 1 && tile(c + dc, r + dr) !== T.FLOOR) return false;
       return true;
     };
-    const p1 = arena.spawns[0];
-    // player 2 starts next to player 1
-    let p2 = null;
-    for (const [dc, dr] of [[0, 1], [0, -1], [1, 0], [-1, 0], [1, 1], [1, -1], [0, 2], [0, -2], [2, 0], [-1, 1], [-1, -1]]) {
-      const c = Math.floor(p1.x) + dc, r = Math.floor(p1.y) + dr;
-      if (tile(c, r) === T.FLOOR) { p2 = { x: c + 0.5, y: r + 0.5, angle: p1.angle }; break; }
-    }
-    if (!p2) p2 = { x: p1.x, y: p1.y + 0.8, angle: p1.angle };
+    const starts = cluster(arena, arena.spawns[0], 4);
+    const [p1, p2] = starts;
 
     // enemies: open tiles far from the players, spread out, best ones on the far side
     const rnd = seeded(n * 97 + 13);
@@ -75,10 +137,11 @@ window.RR = window.RR || {};
       const angle = Math.atan2(p1.y - spot.y, p1.x - spot.x);
       picked[picked.length - 1] = Object.assign({}, spot, { type, angle });
     }
-    return { def, enemies: picked.map(({ type, x, y, angle }) => ({ type, x, y, angle })), spawns: [p1, p2] };
+    return { def, enemies: picked.map(({ type, x, y, angle }) => ({ type, x, y, angle })), spawns: starts };
   }
 
   RR.Campaign = { stage, spawnsFor, count: STAGES.length };
+  RR.Spawns = { battle, cluster };
 
   // Survival: which tanks make up wave n. More of them, and tougher types
   // join as the waves go on (newest types a little more likely).

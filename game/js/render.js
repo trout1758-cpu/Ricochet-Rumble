@@ -1161,6 +1161,7 @@ window.RR = window.RR || {};
         }
         for (const tank of w.tanks) {
           if (tank.alive && Math.floor(tank.y) === r) {
+            if (w.teamPlay && !w.campaign && !tank.ai) this.drawTeamRing(ctx, tank);
             this.drawTank(ctx, tank);
             if (tank.shield || tank.boost > 0 || tank.spread > 0 || tank.bouncy > 0 || tank.rapid > 0) this.drawPowered(ctx, tank);
           }
@@ -1901,6 +1902,21 @@ window.RR = window.RR || {};
     }
 
     // Shield bubble and other power-up glows around a tank.
+    // Team battles: a coloured ring under each tank shows its side.
+    drawTeamRing(ctx, t) {
+      const s = this.s;
+      const team = (RR.game && RR.game.TEAMS) ? RR.game.TEAMS[t.team ? 1 : 0] : { color: t.team ? '#29c8ff' : '#ff4fa3' };
+      const x = this.ox + t.x * s, y = this.oy + t.y * s;
+      ctx.save();
+      ctx.globalAlpha = 0.9;
+      ctx.strokeStyle = team.color;
+      ctx.lineWidth = s * 0.09;
+      ctx.beginPath();
+      ctx.ellipse(x, y + s * 0.08, s * 0.56, s * 0.5, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
     drawPowered(ctx, t) {
       const s = this.s;
       const X = this.ox + t.x * s, Y = this.oy + t.y * s - s * 0.12;
@@ -2030,7 +2046,8 @@ window.RR = window.RR || {};
     ctx.restore();
   };
 
-  RR.drawArenaPreview = function drawArenaPreview(canvas, def, colors) {
+  //   dots (optional): [{ sp: {x, y}, col, ring }] to show instead of the two starts
+  RR.drawArenaPreview = function drawArenaPreview(canvas, def, colors, dots) {
     const a = RR.buildArena(def);
     const th = a.theme;
     const ctx = canvas.getContext('2d');
@@ -2055,8 +2072,17 @@ window.RR = window.RR || {};
         ctx.fillRect(x, y, s, s * 0.75);
       }
     }
-    a.spawns.forEach((sp, i) => {
-      ctx.fillStyle = (colors && colors[i] ? colors[i] : C.PLAYER_COLORS[i]).body;
+    const list = dots || a.spawns.map((sp, i) => ({ sp, col: colors && colors[i] ? colors[i] : C.PLAYER_COLORS[i] }));
+    list.forEach(({ sp, col, ring }) => {
+      if (!sp) return;
+      if (ring) {
+        ctx.strokeStyle = ring;
+        ctx.lineWidth = s * 0.16;
+        ctx.beginPath();
+        ctx.arc(ox + sp.x * s, oy + sp.y * s, s * 0.55, 0, U.TAU);
+        ctx.stroke();
+      }
+      ctx.fillStyle = col.body;
       ctx.beginPath();
       ctx.arc(ox + sp.x * s, oy + sp.y * s, s * 0.42, 0, U.TAU);
       ctx.fill();
