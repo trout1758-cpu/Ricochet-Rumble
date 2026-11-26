@@ -640,3 +640,13 @@ body.letterbox #letterbox-bars i { height: 7vh; }
   background: var(--pc, #333); padding: 1px 5px; border-radius: 6px; border: 2px solid #1d1a24;
 }
 @keyframes ring-pulse { 50% { box-shadow: 0 0 0 2px #fff, 0 0 4px var(--pc, #fff); } }
+
+/* ---------- drop-down picker for controllers ---------- */
+.nav-picker { position: fixed; inset: 0; z-index: 140; background: rgba(18, 14, 26, 0.6); display: flex; align-items: center; justify-content: center; padding: 3vh 3vw; }
+.nav-picker-box { background: var(--paper); border-radius: 20px; padding: 14px 18px; box-shadow: 0 10px 0 var(--edge), 0 20px 40px rgba(0, 0, 0, 0.45); max-height: 94vh; max-width: 94vw; display: flex; flex-direction: column; gap: 10px; }
+.nav-picker-box h3 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 26px; text-align: center; }
+.nav-picker-box p { margin: 0; text-align: center; font-size: 13px; color: var(--ink-soft); font-weight: 700; }
+.nav-picker-grid { display: grid; grid-template-columns: repeat(var(--cols), minmax(170px, 1fr)); gap: 6px; overflow: auto; padding: 6px; }
+.nav-picker-grid button { font: 800 15px var(--body); text-align: left; padding: 8px 12px; border: 0; border-radius: 10px; background: var(--paper-2); color: var(--ink); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nav-picker-grid button.on { background: var(--btn); color: var(--btn-ink); }
+.nav-picker-grid button:hover { filter: brightness(1.05); }

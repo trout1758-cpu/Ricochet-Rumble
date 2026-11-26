@@ -206,7 +206,9 @@ A phone joined over Wi-Fi (QR code) shows that player's own card while you're in
 You don't need the mouse once controllers are connected. From the title screen, press a button on a gamepad or Wii Remote to go to the lobby as Player 1.
 
 - The **D-pad** moves your coloured highlight (the arrow keys for the arrow-keys player; a phone uses its stick). The sticks don't move it, so you can test-drive your tank on the card.
-- **Fire** presses the highlighted button (on a Wii Remote: **A**, or point at the screen and press **A**). On a drop-down, left/right changes the choice; on the Controller menu, press fire to apply it.
+- **A** (✕ on PlayStation; **A** on a Wii Remote) presses the highlighted button. A Wii Remote pointing at the screen can also just point and press **A**; pressing its D-pad switches to the highlight until you move the pointer again.
+- Pressing **A** on a drop-down (the arena, a Controller menu) opens a big on-screen list: D-pad to move, **A** to pick, **B** (or **−** on a Wii Remote) to cancel. Left/right on a highlighted drop-down also steps through it.
+- The **trigger** is always **Ready**, whatever is highlighted: RT/RB on Xbox, R2/R1 on PlayStation, ZR/R on Switch, **B** on a Wii Remote.
 - The first player with a controller can reach the whole screen. Everyone else can set up their own card: colour, hat, team and Ready.
 - **Start / Options / +** starts the match once it can start. **B** closes the help.
 

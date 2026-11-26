@@ -634,7 +634,8 @@
       const rb = $('.ready-btn', card);
       rb.disabled = !ctl;
       rb.classList.toggle('is-ready', p.ready);
-      rb.textContent = p.ready ? 'Ready!' : ctl ? 'Ready? (press fire)' : 'Ready';
+      const fireName = !ctl ? '' : ctl.kind === 'wiimote' ? 'B' : ctl.kind === 'gamepad' ? 'a trigger' : ctl.kind === 'kbm' ? 'click' : 'fire';
+      rb.textContent = p.ready ? 'Ready!' : ctl ? `Ready? (press ${fireName})` : 'Ready';
     });
 
     const ok = canStart();
@@ -889,6 +890,9 @@
         // keyboard + mouse has no menu highlight: fire still means "ready"
         if (p.controller.kind === 'kbm') toggleReady(i);
       }
+      // gamepads and Wii Remotes: the trigger (RT / R2 / ZR, Wii B) is always "ready",
+      // whatever is highlighted or pointed at
+      if (inp.ready > 0 && !RR.MenuNav.pickerOpen()) { pv.recoil = 1; toggleReady(i); }
       if (inp.mine > 0) p.controller.rumble(40, 0.4);
     });
 
@@ -1380,7 +1384,7 @@
       RR.MenuNav.update(dt, i, sc ? inp : null, sc, d, colorOf(i).body, 'P' + (i + 1));
       if (i === lead && inp) {
         // B / mine closes the help; Start in the lobby starts the match
-        if (inp.mine > 0 && helpOpen && !('click' in inp)) show('#screen-help', false);
+        if (helpOpen && (inp.back > 0 || (inp.back == null && inp.mine > 0))) show('#screen-help', false);
         if (inp.pause > 0 && game.state === 'lobby' && !helpOpen && canStart()) startMatch();
         else if (inp.pause > 0 && game.state === 'over') startMatch();
       }

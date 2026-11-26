@@ -773,6 +773,15 @@ console.log('Wii Remote');
     const b = P.readPad({ mapping: 'standard', axes: [0, 0, 0, 0], buttons: btns(17, [13]) }, st);
     if (b.navY !== 1 || b.navX !== 0) throw new Error('D-pad down: ' + JSON.stringify(b));
   });
+  test('gamepads: A confirms in menus, the triggers mean ready', () => {
+    const st = {};
+    const a = P.readPad({ mapping: 'standard', axes: [0, 0, 0, 0], buttons: btns(17, [0]) }, st);
+    if (a.ok !== 1 || a.ready !== 0) throw new Error('A: ' + JSON.stringify(a));
+    const b = P.readPad({ mapping: 'standard', axes: [0, 0, 0, 0], buttons: btns(17, [7]) }, st);
+    if (b.ok !== 0 || b.ready !== 1 || b.fire !== 1) throw new Error('RT: ' + JSON.stringify(b));
+    const c = P.readPad({ mapping: 'standard', axes: [0, 0, 0, 0], buttons: btns(17, [1]) }, st);
+    if (c.back !== 1) throw new Error('B: ' + JSON.stringify(c));
+  });
   test('gamepads: D-pad drives when the stick is idle', () => {
     const r = P.readPad({ mapping: 'standard', axes: [0, 0, 0, 0], buttons: btns(17, [12, 15]) }, {});
     if (!(r.moveX > 0.6 && r.moveY < -0.6)) throw new Error(JSON.stringify(r));

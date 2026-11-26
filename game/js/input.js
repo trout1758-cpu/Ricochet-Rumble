@@ -199,6 +199,9 @@ window.RR = window.RR || {};
       fire = any([7, 5, 0, 3]);
       mine = any([6, 4, 1, 2]);
       pause = any([9, 8]);
+      // menus: A (✕ / Switch B) presses the highlighted button, the
+      // triggers and bumpers mean "I'm ready", the right face button backs out
+      st.ok = edge(0); st.ready = any([7, 5]); st.back = edge(1);
     } else {
       // generic pad: hat switch (usually axis 9) when the stick is idle
       for (const hi of [9, 6, 7]) {
@@ -225,6 +228,8 @@ window.RR = window.RR || {};
         mine = any([1, 4, 6, 2]);
         pause = any([9]);
       }
+      if (st.family !== 'joycon') { st.ok = edge(0); st.ready = any([5, 7]); st.back = edge(1); }
+      else { st.ok = fire; st.ready = 0; st.back = mine; }
     }
     let aimActive = false;
     if (aim && aim.m > 0.2) {
@@ -238,6 +243,7 @@ window.RR = window.RR || {};
     return {
       moveX: move.x, moveY: move.y, aimMode: 'dir', aimX: la.x, aimY: la.y, aimActive,
       rotate: 0, fire, mine, pause, snapOnFire: false, navX, navY,
+      ok: st.ok || 0, ready: st.ready || 0, back: st.back || 0,
     };
   }
 

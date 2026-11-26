@@ -15,7 +15,7 @@ window.RR = window.RR || {};
     if (r.width < 2 || r.height < 2) return false;
     if (r.bottom < 0 || r.right < 0 || r.top > window.innerHeight || r.left > window.innerWidth) {
       // allow things in a scrolling panel
-      if (!el.closest('.panel')) return false;
+      if (!el.closest('.panel') && !el.closest('.nav-picker')) return false;
     }
     const cs = getComputedStyle(el);
     return cs.visibility !== 'hidden' && cs.display !== 'none';
@@ -63,6 +63,7 @@ window.RR = window.RR || {};
   }
 
   const st = [];
+  let picker = null; // { el, sel, owner, current }
   function ringFor(i) {
     const s = st[i];
     if (!s.ring) {
@@ -89,13 +90,19 @@ window.RR = window.RR || {};
         s.dir = null;
         return false;
       }
+      // an open picker belongs to one player: they move inside it
+      if (picker && picker.owner === i) { scope = picker.el; def = picker.current; }
       const items = Array.from(scope.querySelectorAll(SEL)).filter(usable);
       if (!s.el || !items.includes(s.el)) {
         dropPending(s.el);
         s.el = def && items.includes(def) ? def : items[0] || null;
       }
-      // a Wii Remote pointing at the screen clicks with its pointer instead
-      const pointing = inp.screenX != null;
+      // A Wii Remote pointing at the screen clicks with its pointer, until its
+      // D-pad is used: then the highlight takes over until the pointer moves on.
+      const now = performance.now();
+      if (inp.screenX != null && s.dpadPos && Math.hypot(inp.screenX - s.dpadPos.x, inp.screenY - s.dpadPos.y) > 60) s.dpadPos = null;
+      s.dpadMode = inp.screenX != null && !!s.dpadPos;
+      const pointing = inp.screenX != null && !s.dpadMode;
       let dir = null;
       const dpad = inp.navX != null;
       const x = (dpad ? inp.navX : inp.moveX) || 0, y = (dpad ? inp.navY : inp.moveY) || 0;
@@ -104,6 +111,11 @@ window.RR = window.RR || {};
       if (dir !== s.dir) { s.dir = dir; s.t = 0.4; stepNow = !!dir; }
       else if (dir) { s.t -= dt; if (s.t <= 0) { s.t = 0.14; stepNow = true; } }
       let acted = false;
+      if (stepNow && inp.screenX != null) {
+        s.dpadPos = { x: inp.screenX, y: inp.screenY };
+        if (!s.dpadMode) { s.dpadMode = true; stepNow = false; } // first press just shows the highlight
+      }
+      void now;
       if (stepNow && s.el) {
         if (s.el.tagName === 'SELECT' && (dir === 'left' || dir === 'right')) {
           cycle(s.el, dir === 'right' ? 1 : -1, !s.el.hasAttribute('data-nav-commit'));
@@ -113,22 +125,26 @@ window.RR = window.RR || {};
           if (n) {
             dropPending(s.el);
             s.el = n;
-            if (n.closest('.panel')) n.scrollIntoView({ block: 'nearest' });
+            if (n.closest('.panel') || n.closest('.nav-picker')) n.scrollIntoView({ block: 'nearest' });
             if (Nav.onMove) Nav.onMove();
           }
         }
       }
-      const press = 'click' in inp ? inp.click : inp.fire;
+      // confirm: A on gamepads and Wii Remotes, fire on everything else
+      const press = inp.ok != null ? inp.ok : inp.fire;
       if (press > 0 && s.el && !pointing) {
         const el = s.el;
         if (el.tagName === 'SELECT') {
           if (el.dataset.pending) { delete el.dataset.pending; el.dispatchEvent(new Event('change', { bubbles: true })); }
-          else cycle(el, 1, !el.hasAttribute('data-nav-commit'));
+          else Nav.openPicker(el, i);
         } else {
           el.click();
         }
         acted = true;
       }
+      // back: closes an open picker
+      const back = inp.back != null ? inp.back : 0;
+      if (back > 0 && picker && picker.owner === i) Nav.closePicker();
       // draw the highlight
       const r = ringFor(i);
       if (s.el && !pointing) {
@@ -145,6 +161,51 @@ window.RR = window.RR || {};
       return acted;
     },
     current(i) { return st[i] ? st[i].el : null; },
+    // is this player steering with the D-pad right now (Wii pointer on hold)?
+    dpadMode(i) { return !!(st[i] && st[i].dpadMode); },
+    pickerOpen() { return !!picker; },
+
+    // A drop-down as a big on-screen list of buttons, for controllers and the
+    // Wii pointer (the browser's own list only works with a mouse).
+    openPicker(sel, owner) {
+      Nav.closePicker();
+      const opts = options(sel);
+      const el = document.createElement('div');
+      el.className = 'nav-picker';
+      const label = sel.getAttribute('aria-label') || 'Choose';
+      const cols = opts.length > 24 ? 4 : opts.length > 12 ? 3 : 1;
+      el.innerHTML = `<div class="nav-picker-box"><h3></h3><div class="nav-picker-grid" style="--cols:${cols}"></div><p>D-pad to move · A to pick · B to cancel</p></div>`;
+      el.querySelector('h3').textContent = label;
+      const grid = el.querySelector('.nav-picker-grid');
+      let current = null;
+      opts.forEach((o) => {
+        const b = document.createElement('button');
+        b.textContent = o.textContent;
+        b.className = o.value === sel.value ? 'on' : '';
+        if (o.value === sel.value) current = b;
+        b.addEventListener('click', (e) => {
+          e.stopPropagation();
+          delete sel.dataset.pending;
+          sel.value = o.value;
+          Nav.closePicker();
+          sel.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+        grid.appendChild(b);
+      });
+      el.addEventListener('click', (e) => { if (e.target === el) Nav.closePicker(); });
+      document.body.appendChild(el);
+      picker = { el, sel, owner, current: current || grid.firstChild };
+      if (st[owner]) st[owner].el = picker.current;
+      if (picker.current) picker.current.scrollIntoView({ block: 'nearest' });
+      if (Nav.onMove) Nav.onMove();
+    },
+    closePicker() {
+      if (!picker) return;
+      const { el, sel, owner } = picker;
+      picker = null;
+      el.remove();
+      if (st[owner]) st[owner].el = sel;
+    },
   };
 
   RR.MenuNav = Nav;

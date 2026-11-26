@@ -241,6 +241,7 @@ window.RR = window.RR || {};
       if (pressed & BTN.B) this.fire++;
       if (pressed & BTN.A) { this.mine++; this.click++; }
       if (pressed & (BTN.PLUS | BTN.HOME)) this.pause++;
+      if (pressed & BTN.MINUS) this.back = (this.back || 0) + 1;
       const p = irToPointer(s.ir, this.ptr);
       if (p) {
         this.lastIrAt = performance.now();
@@ -271,10 +272,11 @@ window.RR = window.RR || {};
         mx /= m; my /= m;
       }
       const out = { moveX: mx, moveY: my, rotate: 0, fire: this.fire, mine: this.mine, pause: this.pause, snapOnFire: false, click: this.click,
-        // menus move with the D-pad
+        // menus: D-pad moves, A presses, B (trigger) means ready, − backs out
+        ok: this.click, ready: this.fire, back: this.back || 0,
         navX: (s.buttons & BTN.RIGHT ? 1 : 0) - (s.buttons & BTN.LEFT ? 1 : 0),
         navY: (s.buttons & BTN.DOWN ? 1 : 0) - (s.buttons & BTN.UP ? 1 : 0) };
-      this.fire = this.mine = this.pause = this.click = 0;
+      this.fire = this.mine = this.pause = this.click = this.back = 0;
       if (this.pointing && this.cursor) {
         const sx = this.cursor.x * window.innerWidth, sy = this.cursor.y * window.innerHeight;
         const wpt = RR.Input.screenToWorld(sx, sy);
@@ -397,7 +399,6 @@ window.RR = window.RR || {};
     watchJoin(cb, when) {
       joinCb = cb;
       joinWhen = when;
-      if (!('hid' in navigator)) return;
       scanJoin();
       setInterval(scanJoin, 2000);
     },
@@ -516,7 +517,8 @@ window.RR = window.RR || {};
     players.forEach((p, i) => {
       const c = p.controller;
       const inp = inputs[i];
-      const on = menusActive && c && c.kind === 'wiimote' && inp && inp.screenX != null;
+      // hidden while that player steers the menus with the D-pad
+      const on = menusActive && c && c.kind === 'wiimote' && inp && inp.screenX != null && !(RR.MenuNav && RR.MenuNav.dpadMode(i));
       const el = on || cursors[i] ? cursorEl(i, colorOf(i).body) : null;
       if (!el) return;
       el.classList.toggle('hidden', !on);
@@ -529,7 +531,9 @@ window.RR = window.RR || {};
         el.style.visibility = '';
         const btn = target && target.closest('button, select, input, a, [data-click]');
         if (btn && !btn.disabled) {
-          if (btn.tagName === 'INPUT' || btn.tagName === 'SELECT') btn.focus();
+          // a drop-down opens the on-screen picker (a pointer can't use the browser's list)
+          if (btn.tagName === 'SELECT' && RR.MenuNav) RR.MenuNav.openPicker(btn, i);
+          else if (btn.tagName === 'INPUT') btn.focus();
           else btn.click();
           c.rumble(40, 0.4);
         }
