@@ -11,7 +11,8 @@ const root = path.join(__dirname, '..', 'js');
 const sandbox = { console, Math, TextEncoder, TextDecoder, performance: { now: () => Date.now() } };
 sandbox.window = sandbox;
 vm.createContext(sandbox);
-for (const f of ['config.js', 'util.js', 'protocol.js', 'arenas.js', 'ai.js', 'world.js', 'campaign.js', 'wiimote.js']) {
+sandbox.addEventListener = () => {};
+for (const f of ['config.js', 'util.js', 'protocol.js', 'arenas.js', 'ai.js', 'world.js', 'campaign.js', 'wiimote.js', 'input.js']) {
   vm.runInContext(fs.readFileSync(path.join(root, f), 'utf8'), sandbox, { filename: f });
 }
 const RR = sandbox.RR;
@@ -737,6 +738,45 @@ console.log('Wii Remote');
     w.tanks[1].x = 8.5; w.tanks[1].y = 7.0;
     step(w, 0.05, idle4());
     if (!w.mines.length || !w.mines[0].triggered) { if (w.mines.length) throw new Error('enemy did not trigger it'); }
+  });
+}
+{
+  const P = RR.Pad;
+  const btns = (n, on = []) => Array.from({ length: n }, (_, i) => ({ pressed: on.includes(i), value: on.includes(i) ? 1 : 0 }));
+  test('gamepads: brands are recognised', () => {
+    const cases = {
+      'Xbox 360 Controller (XInput STANDARD GAMEPAD)': 'xbox',
+      'Xbox Wireless Controller (STANDARD GAMEPAD Vendor: 045e Product: 0b13)': 'xbox',
+      'DualSense Wireless Controller (STANDARD GAMEPAD Vendor: 054c Product: 0ce6)': 'ps',
+      'Wireless Controller (STANDARD GAMEPAD Vendor: 054c Product: 09cc)': 'ps',
+      'Pro Controller (STANDARD GAMEPAD Vendor: 057e Product: 2009)': 'switch',
+      'Joy-Con L+R (STANDARD GAMEPAD Vendor: 057e Product: 200e)': 'switch',
+      'Joy-Con (R) (Vendor: 057e Product: 2007)': 'joycon',
+      'USB Gamepad (Vendor: 0079 Product: 0011)': 'other',
+    };
+    for (const [id, want] of Object.entries(cases)) if (P.padFamily(id) !== want) throw new Error(`${id} -> ${P.padFamily(id)}`);
+  });
+  test('gamepads: standard layout drives, aims, fires on the press only', () => {
+    const st = { prev: [], lastAim: { x: 1, y: 0 } };
+    const pad = { mapping: 'standard', axes: [0.9, 0, 0, -0.9], buttons: btns(17, [7]) };
+    const a = P.readPad(pad, st);
+    if (!(a.moveX > 0.8) || a.fire !== 1 || !(a.aimY < -0.8) || !a.aimActive) throw new Error(JSON.stringify(a));
+    const b = P.readPad(pad, st);
+    if (b.fire !== 0) throw new Error('fire should only trigger on the press');
+    const c = P.readPad({ mapping: 'standard', axes: [0.05, -0.1, 0, 0], buttons: btns(17, [4]) }, st);
+    if (c.moveX !== 0 || c.moveY !== 0 || c.mine !== 1) throw new Error('deadzone / mine: ' + JSON.stringify(c));
+  });
+  test('gamepads: D-pad drives when the stick is idle', () => {
+    const r = P.readPad({ mapping: 'standard', axes: [0, 0, 0, 0], buttons: btns(17, [12, 15]) }, {});
+    if (!(r.moveX > 0.6 && r.moveY < -0.6)) throw new Error(JSON.stringify(r));
+  });
+  test('gamepads: hat switch and turret-follows-drive for a single Joy-Con', () => {
+    const h = P.hat(-1);
+    if (Math.abs(h.x) > 0.01 || h.y > -0.99) throw new Error('hat -1 should be up: ' + JSON.stringify(h));
+    const st = { family: 'joycon' };
+    const axes = Array(10).fill(0); axes[9] = -1 + 2 / 7 * 2; // right
+    const r = P.readPad({ mapping: '', axes, buttons: btns(16, [0]) }, st);
+    if (!(r.moveX > 0.99) || !(r.aimX > 0.99) || !r.aimActive || r.fire !== 1) throw new Error(JSON.stringify(r));
   });
 }
 console.log(`\n${passes} passed, ${failures} failed`);

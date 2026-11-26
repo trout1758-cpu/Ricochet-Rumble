@@ -16,7 +16,7 @@ The project has two parts:
 | **Wi-Fi controller** | A web page the computer serves to phones on the same network. Works on iPhones and Android phones with nothing to install. | [`game/pad/`](game/pad) |
 | **Ricochet Pad** | Android app that connects over Bluetooth instead, for when there's no usable Wi-Fi. | [`controller-android/`](controller-android) |
 
-Either player can also use a **Wii Remote + Nunchuk** (classic Wii Play controls), a keyboard and mouse, the arrow keys, or a USB/Bluetooth gamepad.
+Any player can also use a **Wii Remote + Nunchuk** (classic Wii Play controls), an **Xbox, PlayStation or Nintendo Switch controller** (USB or Bluetooth), another gamepad, a keyboard and mouse, or the arrow keys.
 
 ### Game modes
 
@@ -184,9 +184,18 @@ It also shows the score, your remaining shells and mines, and the game state.
 | --- | --- | --- | --- | --- | --- |
 | Keys + mouse | `WASD` | mouse | left click / `F` | `Space` / right click / `E` | `Esc` |
 | Arrow keys | arrows | `,` `.` rotate turret | `/` / `Enter` | `Right Shift` / `'` | `Esc` |
-| Gamepad | left stick | right stick | RT / RB / A | LT / LB / B | Start |
+| Xbox controller | left stick or D-pad | right stick | RT / RB / A | LT / LB / B | Menu |
+| PlayStation controller | left stick or D-pad | right stick | R2 / R1 / ✕ | L2 / L1 / ○ | Options |
+| Switch Pro / Joy-Con pair | left stick or D-pad | right stick | ZR / R / B | ZL / L / A | + |
+| Single Joy-Con (sideways) | stick | follows the way you drive | SR / face buttons | SL | + / − |
 
-To use a gamepad, pick **Gamepad** in a player card's **Controller** menu and press any button on the pad.
+To use a controller, pick **Xbox controller**, **PlayStation controller**, **Nintendo Switch controller** or **Other gamepad** in a player card's **Controller** menu, then press any button on it. Connect it first, either over USB or by pairing it in your computer's Bluetooth settings:
+
+- **Xbox:** hold the small pairing button on top until the Xbox logo flashes fast.
+- **PlayStation (DualShock 4 / DualSense):** hold **Share** (or **Create**) and **PS** until the light flashes.
+- **Switch Pro / Joy-Con:** hold the small sync button until the lights run.
+
+The game reads the controller's name to show the right button names. Pads it doesn't recognise get a best-effort layout: the stick or D-pad drives, and if there is no second stick, the turret points the way you drive. Rumble works where the browser supports it (Xbox and PlayStation controllers in Chrome and Edge).
 
 ### Wii Remote + Nunchuk
 

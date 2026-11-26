@@ -558,7 +558,7 @@
         icon.dataset.kind = 'gamepad';
         icon.dataset.state = 'waiting';
         name.textContent = 'Press a button…';
-        detail.textContent = 'on the gamepad you want to use';
+        detail.textContent = { 'pad-xbox': 'on the Xbox controller', 'pad-ps': 'on the PlayStation controller', 'pad-switch': 'on the Switch controller' }[game.gamepadWait.src] || 'on the gamepad you want to use';
       } else if (ctl) {
         icon.dataset.kind = ctl.kind;
         name.textContent = ctl.label;
@@ -576,8 +576,8 @@
       refreshQr(i, card);
       const sel = $('.ctrl-select', card);
       const showing = game.qrWait && game.qrWait.player === i ? 'wifi'
-        : game.gamepadWait && game.gamepadWait.player === i ? 'gamepad'
-          : ctl ? ctl.kind : 'none';
+        : game.gamepadWait && game.gamepadWait.player === i ? (game.gamepadWait.src || 'gamepad')
+          : ctl ? (ctl.kind === 'gamepad' ? ctl.choice || 'gamepad' : ctl.kind) : 'none';
       if (document.activeElement !== sel) sel.value = showing;
       const rb = $('.ready-btn', card);
       rb.disabled = !ctl;
@@ -656,9 +656,14 @@
         console.error(err);
         toast('Could not use that Wii Remote: ' + (err && err.message ? err.message : err), '#ff5a4a', 6000);
       }
-    } else if (src === 'gamepad') {
-      game.gamepadWait = { player: i, until: performance.now() + 12000 };
-      if (RR.Input.gamepads().length === 0) toast('Connect a gamepad, then press any of its buttons.', colorOf(i).body);
+    } else if (src === 'gamepad' || src.startsWith('pad-')) {
+      game.gamepadWait = { player: i, src, until: performance.now() + 12000 };
+      const tips = {
+        'pad-xbox': 'Connect the Xbox controller (USB, or Bluetooth: hold the pairing button), then press any button on it.',
+        'pad-ps': 'Connect the PlayStation controller (USB, or Bluetooth: hold Share/Create + PS), then press any button on it.',
+        'pad-switch': 'Connect the Switch controller (USB, or Bluetooth: hold the sync button), then press any button on it.',
+      };
+      if (RR.Input.gamepads().length === 0 || tips[src]) toast(tips[src] || 'Connect a gamepad, then press any of its buttons.', colorOf(i).body, 6000);
       refreshLobby();
     } else if (src === 'phone') {
       const problem = RR.BLE.problem();
@@ -751,8 +756,9 @@
           if (used.has(pad.index)) continue;
           if (pad.buttons.some((b) => b.pressed)) {
             const i = game.gamepadWait.player;
+            const src = game.gamepadWait.src || 'gamepad';
             game.gamepadWait = null;
-            assignController(i, new RR.GamepadController(pad));
+            assignController(i, new RR.GamepadController(pad, src));
             break;
           }
         }
@@ -1735,7 +1741,10 @@
   document.addEventListener('visibilitychange', () => {
     if (document.hidden && inMatch() && !game.paused) togglePause('');
   });
-  window.addEventListener('gamepadconnected', (e) => toast(`Gamepad connected: ${e.gamepad.id.replace(/\(.*?\)/g, '').trim()}`));
+  window.addEventListener('gamepadconnected', (e) => {
+    const f = RR.Pad.FAMILIES[RR.Pad.padFamily(e.gamepad.id)];
+    toast(`${f.name} connected. Pick it in a player's Controller menu.`);
+  });
   window.addEventListener('gamepaddisconnected', () => toast('Gamepad disconnected', '#ff5a4a'));
   window.addEventListener('resize', onResize);
 
