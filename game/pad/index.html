@@ -65,6 +65,45 @@
     }
     #profile-colors button[aria-checked="true"] { border-color: #fff; box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.35); }
     #profile-colors button:disabled { opacity: 0.2; }
+    #settings { z-index: 20; }
+    /* lobby: this player's card */
+    #lobby {
+      position: fixed; inset: 0; z-index: 12; background: #1c1a26; overflow: auto;
+      padding: max(14px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+      display: flex; flex-direction: column; gap: 12px; box-sizing: border-box;
+    }
+    #lobby .top { display: flex; align-items: center; gap: 10px; }
+    #lobby .pnum { font-weight: 900; font-size: 16px; padding: 4px 10px; border-radius: 10px; background: var(--pc, #666); }
+    #lobby .mode { margin-left: auto; font-size: 13px; font-weight: 800; opacity: 0.7; }
+    #lobby .gear { border: 0; background: rgba(255, 255, 255, 0.12); color: #fff; border-radius: 10px; width: 36px; height: 36px; font-size: 18px; }
+    #lobby .body { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start; }
+    #lobby .me { display: flex; flex-direction: column; gap: 8px; align-items: center; flex: none; }
+    #lobby .me img { width: 132px; height: 96px; background: rgba(255, 255, 255, 0.07); border-radius: 16px; }
+    #lobby-name {
+      width: 150px; box-sizing: border-box; font: 800 18px system-ui, -apple-system, Roboto, sans-serif; text-align: center;
+      padding: 8px 10px; border-radius: 12px; border: 2px solid rgba(255, 255, 255, 0.2);
+      background: rgba(0, 0, 0, 0.25); color: #fff; -webkit-user-select: text; user-select: text;
+    }
+    #lobby .pick { flex: 1; min-width: 240px; display: flex; flex-direction: column; gap: 10px; }
+    #lobby h3 { margin: 0; font-size: 13px; font-weight: 800; opacity: 0.65; text-transform: uppercase; letter-spacing: 0.06em; }
+    #lobby-colors, #lobby-hats, #lobby-team { display: flex; gap: 10px; flex-wrap: wrap; }
+    #lobby-colors button { width: 46px; height: 46px; border-radius: 50%; border: 3px solid rgba(255, 255, 255, 0.25); padding: 0; }
+    #lobby-colors button[aria-checked="true"] { border-color: #fff; box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.4); }
+    #lobby-colors button:disabled { opacity: 0.18; }
+    #lobby-hats button { width: 52px; height: 52px; border-radius: 14px; border: 3px solid transparent; background: rgba(255, 255, 255, 0.1); padding: 0; color: rgba(255, 255, 255, 0.5); font-size: 22px; font-weight: 900; }
+    #lobby-hats button img { width: 44px; height: 44px; display: block; margin: auto; }
+    #lobby-hats button[aria-checked="true"] { border-color: #fff; background: rgba(255, 255, 255, 0.22); }
+    #lobby-hats button:disabled { opacity: 0.45; }
+    #lobby-team button { min-width: 70px; height: 44px; border-radius: 12px; border: 0; font-size: 18px; font-weight: 900; background: rgba(255, 255, 255, 0.12); color: #fff; }
+    #lobby-team button[aria-checked="true"][data-t="0"] { background: #ff4fa3; }
+    #lobby-team button[aria-checked="true"][data-t="1"] { background: #29c8ff; }
+    #lobby-ready {
+      margin-top: auto; width: 100%; min-height: 64px; border: 0; border-radius: 18px; font-size: 24px; font-weight: 900;
+      background: #ffcd45; color: #4a3500; box-shadow: 0 5px 0 #d39c12;
+    }
+    #lobby-ready.on { background: #5cc461; color: #fff; box-shadow: 0 5px 0 #3a9241; }
+    #lobby-ready:active { transform: translateY(3px); box-shadow: 0 2px 0 rgba(0, 0, 0, 0.3); }
+    #lobby .hint { margin: 0; text-align: center; font-size: 13px; opacity: 0.7; }
   </style>
 </head>
 <body>
@@ -87,6 +126,30 @@
         <button id="profile-save">Save</button>
       </div>
     </div>
+  </div>
+
+  <div id="lobby" class="hidden">
+    <div class="top">
+      <span class="pnum" id="lobby-pnum">P1</span>
+      <span class="mode" id="lobby-mode"></span>
+      <button class="gear" id="lobby-gear" aria-label="Controller settings">⚙</button>
+    </div>
+    <div class="body">
+      <div class="me">
+        <img id="lobby-tank" alt="">
+        <input id="lobby-name" maxlength="12" autocomplete="off" autocapitalize="words" spellcheck="false" placeholder="Your name">
+      </div>
+      <div class="pick">
+        <h3>Colour</h3>
+        <div id="lobby-colors"></div>
+        <h3>Hat</h3>
+        <div id="lobby-hats"></div>
+        <h3 id="lobby-team-h">Team</h3>
+        <div id="lobby-team"><button data-t="0">A</button><button data-t="1">B</button></div>
+      </div>
+    </div>
+    <button id="lobby-ready">Ready</button>
+    <p class="hint" id="lobby-hint"></p>
   </div>
 
   <div id="settings" class="overlay hidden">

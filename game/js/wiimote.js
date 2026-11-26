@@ -270,7 +270,10 @@ window.RR = window.RR || {};
         const m = Math.hypot(mx, my) || 1;
         mx /= m; my /= m;
       }
-      const out = { moveX: mx, moveY: my, rotate: 0, fire: this.fire, mine: this.mine, pause: this.pause, snapOnFire: false, click: this.click };
+      const out = { moveX: mx, moveY: my, rotate: 0, fire: this.fire, mine: this.mine, pause: this.pause, snapOnFire: false, click: this.click,
+        // menus move with the D-pad
+        navX: (s.buttons & BTN.RIGHT ? 1 : 0) - (s.buttons & BTN.LEFT ? 1 : 0),
+        navY: (s.buttons & BTN.DOWN ? 1 : 0) - (s.buttons & BTN.UP ? 1 : 0) };
       this.fire = this.mine = this.pause = this.click = 0;
       if (this.pointing && this.cursor) {
         const sx = this.cursor.x * window.innerWidth, sy = this.cursor.y * window.innerHeight;
@@ -353,7 +356,52 @@ window.RR = window.RR || {};
     });
   }
 
+  // ---- press a button on a Wii Remote to join -----------------------------------
+  // Remotes the browser already allowed (no mouse needed after the first time)
+  // are listened to while the title or lobby is up; a button press joins.
+  const watched = new Map(); // device -> listener
+  function unwatch(dev) {
+    const f = watched.get(dev);
+    if (f) { dev.removeEventListener('inputreport', f); watched.delete(dev); }
+  }
+  let joinCb = null, joinWhen = () => false, scanning = false;
+  async function scanJoin() {
+    if (scanning || !joinCb || !joinWhen() || Wiimote.busy || !('hid' in navigator)) return;
+    scanning = true;
+    try {
+      const devs = (await navigator.hid.getDevices()).filter((d) => d.vendorId === VENDOR && PRODUCTS.includes(d.productId));
+      for (const d of devs) {
+        if (watched.has(d) || [...active].some((c) => c.device === d)) continue;
+        try { if (!d.opened) await withTimeout(d.open(), 1500); } catch (e) { continue; }
+        const f = (e) => {
+          if (Wiimote.busy || !joinWhen() || [...active].some((c) => c.device === d)) return;
+          const b = new Uint8Array(e.data.buffer, e.data.byteOffset, Math.min(2, e.data.byteLength));
+          if (e.reportId >= 0x30 && e.reportId <= 0x3f && b.length === 2 && ((b[0] | (b[1] << 8)) & 0x9f1f)) {
+            unwatch(d);
+            joinCb(d);
+          }
+        };
+        watched.set(d, f);
+        d.addEventListener('inputreport', f);
+      }
+    } catch (e) {
+      console.warn(e);
+    } finally {
+      scanning = false;
+    }
+  }
+
   const Wiimote = {
+    busy: false,
+
+    watchJoin(cb, when) {
+      joinCb = cb;
+      joinWhen = when;
+      if (!('hid' in navigator)) return;
+      scanJoin();
+      setInterval(scanJoin, 2000);
+    },
+
     problem() {
       if (!('hid' in navigator)) return 'This browser can’t talk to Wii Remotes. Use Google Chrome or Microsoft Edge on a computer.';
       if (!window.isSecureContext) return 'Open the game with the start script (start-game.bat / start-game.sh) to use Wii Remotes.';
@@ -366,6 +414,15 @@ window.RR = window.RR || {};
     //   onChoose(): called when several remotes are free and one must be picked
     //   by pressing a button on it.
     async connect({ onChoose } = {}) {
+      Wiimote.busy = true;
+      try {
+        return await this.connectInner(onChoose);
+      } finally {
+        Wiimote.busy = false;
+      }
+    },
+
+    async connectInner(onChoose) {
       const filters = PRODUCTS.map((productId) => ({ vendorId: VENDOR, productId }));
       const isWii = (d) => d.vendorId === VENDOR && PRODUCTS.includes(d.productId);
       const free = (list) => list.filter((d) => isWii(d) && ![...active].some((c) => c.device === d));
@@ -403,7 +460,13 @@ window.RR = window.RR || {};
           throw err;
         }
       }
-      found.forEach((d) => { if (d !== dev && d.opened) d.close().catch(() => {}); });
+      found.forEach((d) => { if (d !== dev && d.opened && !watched.has(d)) d.close().catch(() => {}); });
+      return this.adopt(dev);
+    },
+
+    // Turn an allowed HID device into a controller for the game.
+    async adopt(dev) {
+      unwatch(dev);
       const ctl = new WiimoteController(dev);
       await ctl.start();
       active.add(ctl);

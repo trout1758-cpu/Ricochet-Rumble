@@ -164,7 +164,7 @@ RR.CFG = {
   HATS: [
     { id: 'none', name: 'No hat' },
     { id: 'party', name: 'Party hat', how: 'Pull off a trick shot' },
-    { id: 'tophat', name: 'Top hat', how: 'Beat the Computer in a duel' },
+    { id: 'tophat', name: 'Top hat', how: 'Beat the Computer in a battle' },
     { id: 'cowboy', name: 'Cowboy hat', how: 'Clear campaign stage 5' },
     { id: 'propeller', name: 'Propeller cap', how: 'Reach wave 5 in Survival' },
     { id: 'viking', name: 'Viking helmet', how: 'Grab 25 power-ups' },

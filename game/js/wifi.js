@@ -133,11 +133,23 @@ window.RR = window.RR || {};
       if (this.open) Wifi.send(this.num, bytes);
     }
 
+    // The player's lobby card (only sent when something changed).
+    lobbyCard(card, key) {
+      if (key === this.lastCardKey) return;
+      this.lastCardKey = key;
+      const json = new TextEncoder().encode(JSON.stringify(card));
+      const msg = new Uint8Array(json.length + 1);
+      msg[0] = RR.PROTO.MSG_LOBBY_CARD;
+      msg.set(json, 1);
+      this.send(msg);
+    }
+
     // Phone came back on the same id: resend everything it needs.
     resync() {
       this.last = null;
       this.lastStatusKey = null;
       this.lastLobbyKey = null;
+      this.lastCardKey = null;
       if (this.assignMsg) this.send(this.assignMsg);
     }
 

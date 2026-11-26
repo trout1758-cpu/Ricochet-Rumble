@@ -68,36 +68,40 @@
       <h1 class="logo"><span>Ricochet</span><span>Rumble</span></h1>
       <p class="tagline">2–4 player tank battles · co-op campaign vs CPU tanks</p>
       <button id="btn-play" class="btn big">Play</button>
-      <p class="hint">Grab up to four phones, Wii Remotes, Xbox / PlayStation / Switch controllers or a keyboard. Short on players? Add Computer tanks.</p>
+      <p class="hint">Press a button on a gamepad or Wii Remote (or click Play). Up to four players: phones, Wii Remotes, Xbox / PlayStation / Switch controllers or a keyboard. Short on players? Add Computer tanks.</p>
     </div>
   </section>
 
   <!-- Lobby -->
   <section id="screen-lobby" class="screen hidden">
     <div class="lobby">
-      <div class="lobby-side">
-      <div class="player-card" data-player="0">
-        <div class="card-head">
-          <input class="pname" value="Player 1" maxlength="12" spellcheck="false" aria-label="Player 1 name">
-          <span class="pnum">P1</span>
-          <div class="seg team-seg teams-only hidden" aria-label="Team"><button data-t="0">A</button><button data-t="1">B</button></div>
-        </div>
-        <div class="colors" role="radiogroup" aria-label="Tank colour"></div>
-        <div class="hats" role="radiogroup" aria-label="Hat"></div>
-        <div class="tank-preview"><canvas width="220" height="120"></canvas></div>
-        <div class="qr-panel hidden">
-          <div class="qr-title">Scan with your phone’s camera</div>
-          <canvas class="qr" width="168" height="168"></canvas>
-          <div class="qr-url"></div>
-          <div class="qr-actions">
-            <button class="btn small ghost qr-other hidden">Try another address</button>
-            <button class="btn small ghost qr-cancel">Cancel</button>
+      <div class="cards">
+        <div class="player-card" data-player="0">
+          <div class="card-head">
+            <input class="pname" value="Player 1" maxlength="12" spellcheck="false" aria-label="Player 1 name">
+            <div class="seg team-seg teams-only hidden" aria-label="Team"><button data-t="0">A</button><button data-t="1">B</button></div>
+            <span class="pnum">P1</span>
+            
           </div>
-        </div>
-        <div class="ctrl">
-          <div class="ctrl-status"><span class="ctrl-icon"></span><div><div class="ctrl-name">No controller</div><div class="ctrl-detail">Pick one below</div></div></div>
-          <label class="ctrl-pick"><span>Controller</span>
-            <select class="ctrl-select" aria-label="Controller">
+          <div class="card-body">
+            <div class="tank-preview"><canvas width="144" height="96"></canvas></div>
+            <div class="looks">
+              <div class="colors" role="radiogroup" aria-label="Tank colour"></div>
+              <div class="hats" role="radiogroup" aria-label="Hat"></div>
+            </div>
+          </div>
+          <div class="qr-panel hidden">
+            <div class="qr-title">Scan with your phone’s camera</div>
+            <canvas class="qr" width="168" height="168"></canvas>
+            <div class="qr-url"></div>
+            <div class="qr-actions">
+              <button class="btn small ghost qr-other hidden">Try another address</button>
+              <button class="btn small ghost qr-cancel">Cancel</button>
+            </div>
+          </div>
+          <div class="ctrl">
+            <div class="ctrl-status"><span class="ctrl-icon"></span><div class="ctrl-text"><div class="ctrl-name">No controller</div><div class="ctrl-detail">Pick one below, or press a button on a free controller</div></div></div>
+            <select class="ctrl-select" aria-label="Controller" data-nav-commit>
               <option value="none">No controller</option>
               <option value="wifi">Phone · scan QR code (Wi-Fi)</option>
               <option value="phone">Android app (Bluetooth)</option>
@@ -110,32 +114,35 @@
               <option value="arrows">Arrow keys</option>
               <option value="cpu">Computer</option>
             </select>
-          </label>
-        </div>
-        <button class="btn ready-btn" disabled>Ready</button>
-      </div>
-      <div class="player-card" data-player="2">
-        <div class="card-head">
-          <input class="pname" value="Player 3" maxlength="12" spellcheck="false" aria-label="Player 3 name">
-          <span class="pnum">P3</span>
-          <div class="seg team-seg teams-only hidden" aria-label="Team"><button data-t="0">A</button><button data-t="1">B</button></div>
-        </div>
-        <div class="colors" role="radiogroup" aria-label="Tank colour"></div>
-        <div class="hats" role="radiogroup" aria-label="Hat"></div>
-        <div class="tank-preview"><canvas width="220" height="120"></canvas></div>
-        <div class="qr-panel hidden">
-          <div class="qr-title">Scan with your phone’s camera</div>
-          <canvas class="qr" width="168" height="168"></canvas>
-          <div class="qr-url"></div>
-          <div class="qr-actions">
-            <button class="btn small ghost qr-other hidden">Try another address</button>
-            <button class="btn small ghost qr-cancel">Cancel</button>
           </div>
+          <button class="btn ready-btn" disabled>Ready</button>
         </div>
-        <div class="ctrl">
-          <div class="ctrl-status"><span class="ctrl-icon"></span><div><div class="ctrl-name">No controller</div><div class="ctrl-detail">Pick one below</div></div></div>
-          <label class="ctrl-pick"><span>Controller</span>
-            <select class="ctrl-select" aria-label="Controller">
+        <div class="player-card hidden" data-player="1">
+          <div class="card-head">
+            <input class="pname" value="Player 2" maxlength="12" spellcheck="false" aria-label="Player 2 name">
+            <div class="seg team-seg teams-only hidden" aria-label="Team"><button data-t="0">A</button><button data-t="1">B</button></div>
+            <span class="pnum">P2</span>
+            <button class="card-x" title="Remove this player" aria-label="Remove Player 2">×</button>
+          </div>
+          <div class="card-body">
+            <div class="tank-preview"><canvas width="144" height="96"></canvas></div>
+            <div class="looks">
+              <div class="colors" role="radiogroup" aria-label="Tank colour"></div>
+              <div class="hats" role="radiogroup" aria-label="Hat"></div>
+            </div>
+          </div>
+          <div class="qr-panel hidden">
+            <div class="qr-title">Scan with your phone’s camera</div>
+            <canvas class="qr" width="168" height="168"></canvas>
+            <div class="qr-url"></div>
+            <div class="qr-actions">
+              <button class="btn small ghost qr-other hidden">Try another address</button>
+              <button class="btn small ghost qr-cancel">Cancel</button>
+            </div>
+          </div>
+          <div class="ctrl">
+            <div class="ctrl-status"><span class="ctrl-icon"></span><div class="ctrl-text"><div class="ctrl-name">No controller</div><div class="ctrl-detail">Pick one below, or press a button on a free controller</div></div></div>
+            <select class="ctrl-select" aria-label="Controller" data-nav-commit>
               <option value="none">No controller</option>
               <option value="wifi">Phone · scan QR code (Wi-Fi)</option>
               <option value="phone">Android app (Bluetooth)</option>
@@ -148,149 +155,167 @@
               <option value="arrows">Arrow keys</option>
               <option value="cpu">Computer</option>
             </select>
-          </label>
+          </div>
+          <button class="btn ready-btn" disabled>Ready</button>
         </div>
-        <button class="btn ready-btn" disabled>Ready</button>
-      </div>
+        <div class="player-card hidden" data-player="2">
+          <div class="card-head">
+            <input class="pname" value="Player 3" maxlength="12" spellcheck="false" aria-label="Player 3 name">
+            <div class="seg team-seg teams-only hidden" aria-label="Team"><button data-t="0">A</button><button data-t="1">B</button></div>
+            <span class="pnum">P3</span>
+            <button class="card-x" title="Remove this player" aria-label="Remove Player 3">×</button>
+          </div>
+          <div class="card-body">
+            <div class="tank-preview"><canvas width="144" height="96"></canvas></div>
+            <div class="looks">
+              <div class="colors" role="radiogroup" aria-label="Tank colour"></div>
+              <div class="hats" role="radiogroup" aria-label="Hat"></div>
+            </div>
+          </div>
+          <div class="qr-panel hidden">
+            <div class="qr-title">Scan with your phone’s camera</div>
+            <canvas class="qr" width="168" height="168"></canvas>
+            <div class="qr-url"></div>
+            <div class="qr-actions">
+              <button class="btn small ghost qr-other hidden">Try another address</button>
+              <button class="btn small ghost qr-cancel">Cancel</button>
+            </div>
+          </div>
+          <div class="ctrl">
+            <div class="ctrl-status"><span class="ctrl-icon"></span><div class="ctrl-text"><div class="ctrl-name">No controller</div><div class="ctrl-detail">Pick one below, or press a button on a free controller</div></div></div>
+            <select class="ctrl-select" aria-label="Controller" data-nav-commit>
+              <option value="none">No controller</option>
+              <option value="wifi">Phone · scan QR code (Wi-Fi)</option>
+              <option value="phone">Android app (Bluetooth)</option>
+              <option value="wiimote">Wii Remote + Nunchuk (DolphinBar)</option>
+              <option value="pad-xbox">Xbox controller</option>
+              <option value="pad-ps">PlayStation controller</option>
+              <option value="pad-switch">Nintendo Switch controller</option>
+              <option value="gamepad">Other gamepad</option>
+              <option value="kbm">Keyboard + mouse</option>
+              <option value="arrows">Arrow keys</option>
+              <option value="cpu">Computer</option>
+            </select>
+          </div>
+          <button class="btn ready-btn" disabled>Ready</button>
+        </div>
+        <div class="player-card hidden" data-player="3">
+          <div class="card-head">
+            <input class="pname" value="Player 4" maxlength="12" spellcheck="false" aria-label="Player 4 name">
+            <div class="seg team-seg teams-only hidden" aria-label="Team"><button data-t="0">A</button><button data-t="1">B</button></div>
+            <span class="pnum">P4</span>
+            <button class="card-x" title="Remove this player" aria-label="Remove Player 4">×</button>
+          </div>
+          <div class="card-body">
+            <div class="tank-preview"><canvas width="144" height="96"></canvas></div>
+            <div class="looks">
+              <div class="colors" role="radiogroup" aria-label="Tank colour"></div>
+              <div class="hats" role="radiogroup" aria-label="Hat"></div>
+            </div>
+          </div>
+          <div class="qr-panel hidden">
+            <div class="qr-title">Scan with your phone’s camera</div>
+            <canvas class="qr" width="168" height="168"></canvas>
+            <div class="qr-url"></div>
+            <div class="qr-actions">
+              <button class="btn small ghost qr-other hidden">Try another address</button>
+              <button class="btn small ghost qr-cancel">Cancel</button>
+            </div>
+          </div>
+          <div class="ctrl">
+            <div class="ctrl-status"><span class="ctrl-icon"></span><div class="ctrl-text"><div class="ctrl-name">No controller</div><div class="ctrl-detail">Pick one below, or press a button on a free controller</div></div></div>
+            <select class="ctrl-select" aria-label="Controller" data-nav-commit>
+              <option value="none">No controller</option>
+              <option value="wifi">Phone · scan QR code (Wi-Fi)</option>
+              <option value="phone">Android app (Bluetooth)</option>
+              <option value="wiimote">Wii Remote + Nunchuk (DolphinBar)</option>
+              <option value="pad-xbox">Xbox controller</option>
+              <option value="pad-ps">PlayStation controller</option>
+              <option value="pad-switch">Nintendo Switch controller</option>
+              <option value="gamepad">Other gamepad</option>
+              <option value="kbm">Keyboard + mouse</option>
+              <option value="arrows">Arrow keys</option>
+              <option value="cpu">Computer</option>
+            </select>
+          </div>
+          <button class="btn ready-btn" disabled>Ready</button>
+        </div>
+        <div class="add-tile">
+          <button class="btn add-player" id="btn-add-player">+ Add player</button>
+          <button class="btn small ghost" id="btn-add-cpu">+ Add Computer</button>
+          <p>or press a button on a free controller</p>
+        </div>
       </div>
 
       <div class="match-panel">
-        <h2>Match setup</h2>
-        <div class="seg mode-seg" id="set-mode"><button data-v="duel">⚔ Battle</button><button data-v="campaign">★ Campaign</button><button data-v="survival">∞ Survival</button></div>
-        <div class="campaign-only campaign-info hidden">
-          <p>Team up (or go solo) against <b>20 stages</b> of CPU tanks. Clear every enemy tank to advance. You share <b>3 lives</b>, with an extra one every 5 stages.</p>
-          <p class="campaign-best" id="campaign-best"></p>
-        </div>
-        <div class="survival-only campaign-info hidden">
-          <p>Endless waves of CPU tanks warp into one arena, and each wave is bigger and tougher. Knocked out? You're back in a couple of seconds while the team has <b>lives</b> left (3, plus one every 5 waves).</p>
-          <p class="campaign-best" id="survival-best"></p>
-        </div>
-        <div class="setting duel-only">
-          <label>Battle</label>
-          <div class="seg" id="set-battle"><button data-v="ffa">Free-for-all</button><button data-v="teams">Teams</button></div>
-        </div>
-        <p class="campaign-info duel-only battle-info">2–4 players: give players 3 and 4 a controller (or the Computer) to join in. In <b>Teams</b>, pick A or B on each card; a team-mate's mine won't go off under you (its blast still hurts, and so do stray shells!).</p>
-        <div class="setting duel-only">
-          <label>First to</label>
-          <div class="seg" id="set-wins">
-            <button data-v="3">3</button><button data-v="5">5</button><button data-v="7">7</button>
+        <div class="mp-settings">
+          <div class="seg mode-seg" id="set-mode"><button data-v="duel">⚔ Battle</button><button data-v="campaign">★ Campaign</button><button data-v="survival">∞ Survival</button></div>
+          <div class="setting duel-only">
+            <label>Battle</label>
+            <div class="seg" id="set-battle"><button data-v="ffa">Free-for-all</button><button data-v="teams">Teams</button></div>
+          </div>
+          <div class="setting duel-only">
+            <label>First to</label>
+            <div class="seg" id="set-wins"><button data-v="3">3</button><button data-v="5">5</button><button data-v="7">7</button></div>
+          </div>
+          <div class="setting">
+            <label>Ammo</label>
+            <div class="seg" id="set-ammo"></div>
+          </div>
+          <div class="setting-pair">
+            <div class="setting">
+              <label>Power-ups</label>
+              <div class="seg" id="set-powerups"><button data-v="on">On</button><button data-v="off">Off</button></div>
+            </div>
+            <div class="setting">
+              <label>Mines</label>
+              <div class="seg" id="set-mines"><button data-v="on">On</button><button data-v="off">Off</button></div>
+            </div>
+          </div>
+          <div class="setting-pair">
+            <div class="setting">
+              <label>Arena effects</label>
+              <div class="seg" id="set-effects"><button data-v="on">On</button><button data-v="off">Off</button></div>
+            </div>
+            <div class="setting">
+              <label>Replays</label>
+              <div class="seg" id="set-replay"><button data-v="on">On</button><button data-v="off">Off</button></div>
+            </div>
+          </div>
+          <div class="setting-pair">
+            <div class="setting">
+              <label>Music</label>
+              <div class="seg" id="set-music"><button data-v="on">On</button><button data-v="off">Off</button></div>
+            </div>
+            <div class="setting">
+              <button class="btn small ghost help-btn" id="btn-help">How to play</button>
+            </div>
           </div>
         </div>
-        <div class="setting no-campaign">
-          <label for="set-arena">Arena</label>
-          <select id="set-arena"></select>
-        </div>
-        <canvas id="arena-preview" class="no-campaign" width="440" height="268"></canvas>
-        <p class="arena-effect no-campaign" id="arena-effect"></p>
-        <div class="setting">
-          <label>Power-ups</label>
-          <div class="seg" id="set-powerups"><button data-v="on">On</button><button data-v="off">Off</button></div>
-        </div>
-        <div class="setting">
-          <label>Ammo</label>
-          <div class="seg" id="set-ammo"></div>
-        </div>
-        <div class="setting">
-          <label>Mines</label>
-          <div class="seg" id="set-mines"><button data-v="on">On</button><button data-v="off">Off</button></div>
-        </div>
-        <div class="setting">
-          <label>Arena effects</label>
-          <div class="seg" id="set-effects"><button data-v="on">On</button><button data-v="off">Off</button></div>
-        </div>
-        <div class="setting">
-          <label>Instant replay</label>
-          <div class="seg" id="set-replay"><button data-v="on">On</button><button data-v="off">Off</button></div>
-        </div>
-        <div class="setting">
-          <label>Music</label>
-          <div class="seg" id="set-music"><button data-v="on">On</button><button data-v="off">Off</button></div>
-        </div>
-        <button id="btn-start" class="btn big" disabled>Start match</button>
-        <p class="start-hint" id="start-hint">Give at least two players a controller.</p>
-      </div>
 
-      <div class="lobby-side">
-      <div class="player-card" data-player="1">
-        <div class="card-head">
-          <input class="pname" value="Player 2" maxlength="12" spellcheck="false" aria-label="Player 2 name">
-          <span class="pnum">P2</span>
-          <div class="seg team-seg teams-only hidden" aria-label="Team"><button data-t="0">A</button><button data-t="1">B</button></div>
-        </div>
-        <div class="colors" role="radiogroup" aria-label="Tank colour"></div>
-        <div class="hats" role="radiogroup" aria-label="Hat"></div>
-        <div class="tank-preview"><canvas width="220" height="120"></canvas></div>
-        <div class="qr-panel hidden">
-          <div class="qr-title">Scan with your phone’s camera</div>
-          <canvas class="qr" width="168" height="168"></canvas>
-          <div class="qr-url"></div>
-          <div class="qr-actions">
-            <button class="btn small ghost qr-other hidden">Try another address</button>
-            <button class="btn small ghost qr-cancel">Cancel</button>
+        <div class="mp-arena">
+          <h2>Match setup</h2>
+          <div class="campaign-only campaign-info hidden">
+            <p>Team up (or go solo) against <b>20 stages</b> of CPU tanks. Clear every enemy tank to advance. You share <b>3 lives</b>, with an extra one every 5 stages.</p>
+            <p class="campaign-best" id="campaign-best"></p>
           </div>
-        </div>
-        <div class="ctrl">
-          <div class="ctrl-status"><span class="ctrl-icon"></span><div><div class="ctrl-name">No controller</div><div class="ctrl-detail">Pick one below</div></div></div>
-          <label class="ctrl-pick"><span>Controller</span>
-            <select class="ctrl-select" aria-label="Controller">
-              <option value="none">No controller</option>
-              <option value="wifi">Phone · scan QR code (Wi-Fi)</option>
-              <option value="phone">Android app (Bluetooth)</option>
-              <option value="wiimote">Wii Remote + Nunchuk (DolphinBar)</option>
-              <option value="pad-xbox">Xbox controller</option>
-              <option value="pad-ps">PlayStation controller</option>
-              <option value="pad-switch">Nintendo Switch controller</option>
-              <option value="gamepad">Other gamepad</option>
-              <option value="kbm">Keyboard + mouse</option>
-              <option value="arrows">Arrow keys</option>
-              <option value="cpu">Computer</option>
-            </select>
-          </label>
-        </div>
-        <button class="btn ready-btn" disabled>Ready</button>
-      </div>
-      <div class="player-card" data-player="3">
-        <div class="card-head">
-          <input class="pname" value="Player 4" maxlength="12" spellcheck="false" aria-label="Player 4 name">
-          <span class="pnum">P4</span>
-          <div class="seg team-seg teams-only hidden" aria-label="Team"><button data-t="0">A</button><button data-t="1">B</button></div>
-        </div>
-        <div class="colors" role="radiogroup" aria-label="Tank colour"></div>
-        <div class="hats" role="radiogroup" aria-label="Hat"></div>
-        <div class="tank-preview"><canvas width="220" height="120"></canvas></div>
-        <div class="qr-panel hidden">
-          <div class="qr-title">Scan with your phone’s camera</div>
-          <canvas class="qr" width="168" height="168"></canvas>
-          <div class="qr-url"></div>
-          <div class="qr-actions">
-            <button class="btn small ghost qr-other hidden">Try another address</button>
-            <button class="btn small ghost qr-cancel">Cancel</button>
+          <div class="survival-only campaign-info hidden">
+            <p>Endless waves of CPU tanks warp into one arena, each one bigger and tougher. Knocked out? You're back in a moment while the team has <b>lives</b> left (3, plus one every 5 waves).</p>
+            <p class="campaign-best" id="survival-best"></p>
           </div>
+          <div class="arena-row no-campaign">
+            <canvas id="arena-preview" width="440" height="268"></canvas>
+            <div class="arena-side">
+              <select id="set-arena" aria-label="Arena"></select>
+              <p class="arena-effect" id="arena-effect"></p>
+            </div>
+          </div>
+          <button id="btn-start" class="btn big" disabled>Start match</button>
+          <p class="start-hint" id="start-hint">Give at least two players a controller.</p>
+          <p class="lobby-note" id="ble-note"></p>
         </div>
-        <div class="ctrl">
-          <div class="ctrl-status"><span class="ctrl-icon"></span><div><div class="ctrl-name">No controller</div><div class="ctrl-detail">Pick one below</div></div></div>
-          <label class="ctrl-pick"><span>Controller</span>
-            <select class="ctrl-select" aria-label="Controller">
-              <option value="none">No controller</option>
-              <option value="wifi">Phone · scan QR code (Wi-Fi)</option>
-              <option value="phone">Android app (Bluetooth)</option>
-              <option value="wiimote">Wii Remote + Nunchuk (DolphinBar)</option>
-              <option value="pad-xbox">Xbox controller</option>
-              <option value="pad-ps">PlayStation controller</option>
-              <option value="pad-switch">Nintendo Switch controller</option>
-              <option value="gamepad">Other gamepad</option>
-              <option value="kbm">Keyboard + mouse</option>
-              <option value="arrows">Arrow keys</option>
-              <option value="cpu">Computer</option>
-            </select>
-          </label>
-        </div>
-        <button class="btn ready-btn" disabled>Ready</button>
-      </div>
       </div>
     </div>
-    <p class="lobby-note" id="ble-note"></p>
-    <button class="btn small ghost help-btn" id="btn-help">How to play</button>
   </section>
 
   <!-- Pause -->
@@ -335,6 +360,8 @@
             <li><b>Survival:</b> endless, growing waves in one arena. Knocked-out players respawn while the team has lives.</li>
             <li><b>Power-ups:</b> shield (blocks a hit), turbo, triple shot, super bounce, rapid fire. Drive over them.</li>
             <li><b>Hats:</b> unlock them with achievements and pick one on your player card.</li>
+            <li><b>Menus with a controller:</b> the D-pad moves your highlight, fire (A on a Wii Remote) presses. The first player can reach the whole screen; everyone else can set up their own card. Start starts the match.</li>
+            <li><b>More players:</b> press a button on a free gamepad or Wii Remote to join, or use <b>+ Add player</b> / <b>+ Add Computer</b>.</li>
           </ul>
           <h3>Rules</h3>
           <ul>
@@ -355,7 +382,7 @@
             <li><b>Left thumb:</b> drag to drive.</li>
             <li><b>Right thumb:</b> drag to aim, let go to fire. Tap to fire where the turret points. Slide back to the middle to cancel.</li>
             <li><b>Mine</b> is the button in the top middle; <b>Pause</b> is top right.</li>
-            <li>In the lobby, tap your name on the phone to change it and your tank colour.</li>
+            <li>In the lobby, a Wi-Fi phone shows your own player card: tap your colour, hat and team, type your name, then tap <b>Ready</b>. (The Android Bluetooth app: tap your name to change it and your colour.)</li>
           </ul>
           <h3>Wii Remote + Nunchuk</h3>
           <ul>
@@ -393,6 +420,7 @@
   <script src="js/input.js"></script>
   <script src="js/ble.js"></script>
   <script src="js/wiimote.js"></script>
+  <script src="js/menunav.js"></script>
   <script src="js/vendor/qrcode.js"></script>
   <script src="js/wifi.js"></script>
   <script src="js/main.js"></script>

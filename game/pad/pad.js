@@ -56,6 +56,7 @@
   let playerColor = 'rgb(200,200,215)';
   let game = null;
   let lobbyInfo = null; // { my, other, name } from the game
+  let card = null;      // this player's lobby card (newer games send it)
 
   const padId = (() => {
     try {
@@ -125,6 +126,10 @@
           lobbyInfo = { my: b[1], other: b[2], name: new TextDecoder().decode(b.slice(4, 4 + b[3])) };
         }
         break;
+      case P.MSG_LOBBY_CARD:
+        try { card = JSON.parse(new TextDecoder().decode(b.slice(1))); } catch (e) { card = null; }
+        renderCard();
+        break;
       case MSG_KICK:
         conn = b[1] === 1 ? 'full' : 'kicked';
         playerIndex = -1;
@@ -133,6 +138,7 @@
         break;
     }
     dirty = true;
+    showLobby();
   }
 
   function sendState() {
@@ -343,6 +349,83 @@
   }
 
   const $ = (id) => document.getElementById(id);
+
+  // ---- lobby: the player's own card ----------------------------------------------------------
+  // While the game is in its lobby, the phone shows this player's card: tap a
+  // colour or hat, pick a team, and tap Ready. In a match it's a controller again.
+  function sendProfile(obj) {
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    const json = new TextEncoder().encode(JSON.stringify(obj));
+    const msg = new Uint8Array(json.length + 1);
+    msg[0] = P.PROFILE_JSON;
+    msg.set(json, 1);
+    ws.send(msg);
+    vibrate(15);
+  }
+
+  function showLobby() {
+    const on = !!(card && conn === 'connected' && playerIndex >= 0 && game && game.state === P.STATE.LOBBY);
+    $('lobby').classList.toggle('hidden', !on);
+  }
+
+  function renderCard() {
+    if (!card) return;
+    const pc = PALETTE[card.color] ? PALETTE[card.color].body : '#666';
+    $('lobby').style.setProperty('--pc', pc);
+    $('lobby-pnum').textContent = `P${card.p + 1}`;
+    $('lobby-mode').textContent = card.mode || '';
+    if (card.tank) $('lobby-tank').src = card.tank;
+    if (document.activeElement !== $('lobby-name')) $('lobby-name').value = card.name || '';
+    const cols = $('lobby-colors');
+    if (cols.children.length !== PALETTE.length) {
+      cols.innerHTML = '';
+      PALETTE.forEach((c, i) => {
+        const b = document.createElement('button');
+        b.style.background = c.body;
+        b.setAttribute('aria-label', c.name);
+        b.addEventListener('click', () => sendProfile({ color: i }));
+        cols.appendChild(b);
+      });
+    }
+    Array.from(cols.children).forEach((b, i) => {
+      b.setAttribute('aria-checked', String(i === card.color));
+      b.disabled = (card.taken || []).includes(i);
+    });
+    const hats = $('lobby-hats');
+    const hatKey = (card.hats || []).map((h) => h.id + (h.ok ? 1 : 0)).join();
+    if (hats.dataset.key !== hatKey) {
+      hats.dataset.key = hatKey;
+      hats.innerHTML = '';
+      (card.hats || []).forEach((h) => {
+        const b = document.createElement('button');
+        b.dataset.id = h.id;
+        b.title = h.name;
+        b.disabled = !h.ok;
+        if (h.icon) { const img = document.createElement('img'); img.src = h.icon; img.alt = h.name; b.appendChild(img); } else b.textContent = '?';
+        b.addEventListener('click', () => sendProfile({ hat: h.id }));
+        hats.appendChild(b);
+      });
+    }
+    Array.from(hats.children).forEach((b) => b.setAttribute('aria-checked', String(b.dataset.id === card.hat)));
+    $('lobby-team-h').classList.toggle('hidden', !card.teams);
+    $('lobby-team').classList.toggle('hidden', !card.teams);
+    $('lobby-team').querySelectorAll('button').forEach((b) => b.setAttribute('aria-checked', String(Number(b.dataset.t) === card.team)));
+    const r = $('lobby-ready');
+    r.classList.toggle('on', !!card.ready);
+    r.textContent = card.ready ? 'Ready! ✓ (tap to cancel)' : 'Ready';
+    $('lobby-hint').textContent = card.hint || '';
+    showLobby();
+  }
+  $('lobby-team').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => sendProfile({ team: Number(b.dataset.t) })));
+  $('lobby-ready').addEventListener('click', () => sendProfile({ ready: 'toggle' }));
+  $('lobby-gear').addEventListener('click', () => openSettings());
+  const nameIn = $('lobby-name');
+  const sendName = () => { const n = nameIn.value.trim().slice(0, 12); if (n && card && n !== card.name) sendProfile({ name: n }); };
+  nameIn.addEventListener('change', sendName);
+  nameIn.addEventListener('keydown', (e) => { if (e.key === 'Enter') nameIn.blur(); });
+  nameIn.addEventListener('blur', sendName);
+  // taps on the card must not reach the controller canvas underneath
+  $('lobby').addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
 
   // ---- name & colour (lobby only) ----------------------------------------------------------
   let pickedColor = 0;

@@ -73,6 +73,13 @@ window.RR = window.RR || {};
     }
 
     handlePacket(dv) {
+      if (dv.byteLength && dv.getUint8(0) === P.PROFILE_JSON) {
+        try {
+          const obj = JSON.parse(new TextDecoder().decode(new Uint8Array(dv.buffer, dv.byteOffset + 1, dv.byteLength - 1)));
+          if (obj && typeof obj === 'object' && this.onprofile) this.onprofile(obj);
+        } catch (e) { /* bad packet */ }
+        return;
+      }
       if (dv.byteLength && dv.getUint8(0) === P.PROFILE) {
         const profile = P.decodeProfile(dv);
         if (profile && this.onprofile) this.onprofile(profile);

@@ -189,24 +189,28 @@ window.RR = window.RR || {};
     st.prev = pressed;
     let move = deadzone(ax(0), ax(1));
     let aim = null;
+    let navX = 0, navY = 0; // menus move with the D-pad only
     let fire, mine, pause;
     if (standard) {
-      if (!move.m) {
-        const dx = (pressed[15] ? 1 : 0) - (pressed[14] ? 1 : 0), dy = (pressed[13] ? 1 : 0) - (pressed[12] ? 1 : 0);
-        if (dx || dy) { const d = Math.hypot(dx, dy); move = { x: dx / d, y: dy / d, m: 1 }; }
-      }
+      const dx = (pressed[15] ? 1 : 0) - (pressed[14] ? 1 : 0), dy = (pressed[13] ? 1 : 0) - (pressed[12] ? 1 : 0);
+      navX = dx; navY = dy;
+      if (!move.m && (dx || dy)) { const d = Math.hypot(dx, dy); move = { x: dx / d, y: dy / d, m: 1 }; }
       if (axes.length >= 4) aim = deadzone(ax(2), ax(3));
       fire = any([7, 5, 0, 3]);
       mine = any([6, 4, 1, 2]);
       pause = any([9, 8]);
     } else {
       // generic pad: hat switch (usually axis 9) when the stick is idle
-      if (!move.m) {
-        for (const hi of [9, 6, 7]) {
-          const h = axes.length > hi && Math.abs(ax(hi)) <= 1.05 && Math.abs(ax(hi)) > 0.01 ? hat(ax(hi)) : null;
-          if (h) { move = { x: h.x, y: h.y, m: 1 }; break; }
+      for (const hi of [9, 6, 7]) {
+        const h = axes.length > hi && Math.abs(ax(hi)) <= 1.05 && Math.abs(ax(hi)) > 0.01 ? hat(ax(hi)) : null;
+        if (h) {
+          navX = Math.round(h.x); navY = Math.round(h.y);
+          if (!move.m) move = { x: h.x, y: h.y, m: 1 };
+          break;
         }
       }
+      // a single Joy-Con's only stick is its D-pad
+      if (st.family === 'joycon' && !navX && !navY && move.m > 0.6) { navX = move.x; navY = move.y; }
       if (axes.length >= 4 && st.family !== 'joycon') {
         // right stick is axes 2/3 on most pads, 2/5 or 3/4 on some
         const a = deadzone(ax(2), ax(axes.length > 5 && Math.abs(ax(3)) < 0.01 ? 5 : 3));
@@ -233,7 +237,7 @@ window.RR = window.RR || {};
     const la = st.lastAim || { x: 1, y: 0 };
     return {
       moveX: move.x, moveY: move.y, aimMode: 'dir', aimX: la.x, aimY: la.y, aimActive,
-      rotate: 0, fire, mine, pause, snapOnFire: false,
+      rotate: 0, fire, mine, pause, snapOnFire: false, navX, navY,
     };
   }
 

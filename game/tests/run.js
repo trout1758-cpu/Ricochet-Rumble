@@ -766,6 +766,13 @@ console.log('Wii Remote');
     const c = P.readPad({ mapping: 'standard', axes: [0.05, -0.1, 0, 0], buttons: btns(17, [4]) }, st);
     if (c.moveX !== 0 || c.moveY !== 0 || c.mine !== 1) throw new Error('deadzone / mine: ' + JSON.stringify(c));
   });
+  test('gamepads: menus follow the D-pad, not the stick', () => {
+    const st = {};
+    const a = P.readPad({ mapping: 'standard', axes: [1, 0, 0, 0], buttons: btns(17) }, st);
+    if (a.navX !== 0 || a.navY !== 0) throw new Error('stick moved the menu: ' + JSON.stringify(a));
+    const b = P.readPad({ mapping: 'standard', axes: [0, 0, 0, 0], buttons: btns(17, [13]) }, st);
+    if (b.navY !== 1 || b.navX !== 0) throw new Error('D-pad down: ' + JSON.stringify(b));
+  });
   test('gamepads: D-pad drives when the stick is idle', () => {
     const r = P.readPad({ mapping: 'standard', axes: [0, 0, 0, 0], buttons: btns(17, [12, 15]) }, {});
     if (!(r.moveX > 0.6 && r.moveY < -0.6)) throw new Error(JSON.stringify(r));

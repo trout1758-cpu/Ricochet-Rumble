@@ -117,6 +117,8 @@
     qrWait: null,
     matchWinner: null,
     slots: [0, 1],
+    shown: 1,          // player cards showing in the lobby (add players one at a time)
+    padPrev: {},       // gamepad buttons last frame, for "press to join"
     goShown: false,
     mineBlink: new Map(),
     resultsAt: 0,
@@ -240,6 +242,7 @@
     game.paused = false;
     game.lobbyCountdown = 0;
     players.forEach((p) => { p.ready = false; });
+    players.forEach((p, i) => { if (p.controller) game.shown = Math.max(game.shown, i + 1); });
     show('#screen-title', false);
     show('#screen-lobby', true);
     show('#screen-pause', false);
@@ -415,6 +418,9 @@
       startMatch();
     });
     $('#btn-help').addEventListener('click', () => show('#screen-help', true));
+    $('#btn-add-player').addEventListener('click', (e) => { e.currentTarget.blur(); addPlayer(false); });
+    $('#btn-add-cpu').addEventListener('click', (e) => { e.currentTarget.blur(); addPlayer(true); });
+    $$('.card-x').forEach((b) => b.addEventListener('click', (e) => { e.currentTarget.blur(); dropLastPlayer(); }));
     $('#btn-help-close').addEventListener('click', () => show('#screen-help', false));
 
     const problem = RR.BLE.problem();
@@ -438,17 +444,61 @@
     RR.Wifi.start();
   }
 
+  // ---- players joining one at a time ----------------------------------------------
+  // First empty card, or a new card if there's room. -1 when all four are taken.
+  function freeSlot(grow = true) {
+    for (let i = 0; i < game.shown; i++) {
+      const waiting = (game.qrWait && game.qrWait.player === i) || (game.gamepadWait && game.gamepadWait.player === i);
+      if (!players[i].controller && !waiting) return i;
+    }
+    if (grow && game.shown < NP) {
+      game.shown++;
+      return game.shown - 1;
+    }
+    return -1;
+  }
+
+  function addPlayer(cpu) {
+    if (game.shown >= NP) return;
+    game.shown++;
+    audio.click();
+    if (cpu) chooseController(game.shown - 1, 'cpu');
+    refreshLobby();
+  }
+
+  function dropLastPlayer() {
+    if (game.shown <= 1) return;
+    const i = game.shown - 1;
+    if (game.qrWait && game.qrWait.player === i) game.qrWait = null;
+    if (game.gamepadWait && game.gamepadWait.player === i) game.gamepadWait = null;
+    removeController(i, true);
+    game.shown--;
+    audio.click();
+    refreshLobby();
+  }
+
+  // Scale the lobby to fit the window (it's laid out at a fixed size).
+  function fitLobby() {
+    const el = $('.lobby');
+    if (!el || $('#screen-lobby').classList.contains('hidden')) return;
+    const w = el.offsetWidth, h = el.offsetHeight;
+    if (!w || !h) return;
+    const k = Math.min((window.innerWidth - 20) / w, (window.innerHeight - 20) / h, 1.6);
+    el.style.transform = `scale(${k.toFixed(4)})`;
+  }
+
   // A phone opened the Wi-Fi controller page (scanned a player's QR code, or
   // typed the address). Give it that player's tank if we can.
   function onWifiPad(ctl, slot) {
-    let i = slot === '0' || slot === '1' ? Number(slot) : players.findIndex((p) => !p.controller);
+    let i = /^[0-3]$/.test(slot) ? Number(slot) : game.state === 'lobby' ? freeSlot() : players.findIndex((p) => !p.controller);
     if (i < 0 && game.qrWait) i = game.qrWait.player;
+    if (i >= 0) game.shown = Math.max(game.shown, i + 1);
     const current = i >= 0 ? players[i].controller : null;
     const busy = game.state !== 'lobby' && current && current.connected;
     const qrForThis = game.qrWait && game.qrWait.player === i;
     if (i < 0 || busy || (game.state === 'lobby' && slot === '' && current && !qrForThis)) {
       ctl.reject();
-      toast('A phone tried to join, but both players already have controllers.', '#ff5a4a');
+      toast('A phone tried to join, but all four players already have controllers.', '#ff5a4a');
       return;
     }
     if (game.qrWait && game.qrWait.player === i) game.qrWait = null;
@@ -547,8 +597,10 @@
       card.style.setProperty('--tc', TEAMS[teamOf(i)].color);
       card.classList.toggle('teamed', teamsOn());
       const waitingHere = (game.qrWait && game.qrWait.player === i) || (game.gamepadWait && game.gamepadWait.player === i);
-      // players 3 and 4 fold away until someone picks a controller for them
-      card.classList.toggle('idle', i >= 2 && !p.controller && !waitingHere);
+      card.classList.toggle('hidden', i >= game.shown);
+      const x = $('.card-x', card);
+      if (x) x.classList.toggle('hidden', i !== game.shown - 1);
+      void waitingHere;
       const ctl = p.controller;
       const icon = $('.ctrl-icon', card);
       const name = $('.ctrl-name', card);
@@ -578,7 +630,7 @@
       const showing = game.qrWait && game.qrWait.player === i ? 'wifi'
         : game.gamepadWait && game.gamepadWait.player === i ? (game.gamepadWait.src || 'gamepad')
           : ctl ? (ctl.kind === 'gamepad' ? ctl.choice || 'gamepad' : ctl.kind) : 'none';
-      if (document.activeElement !== sel) sel.value = showing;
+      if (document.activeElement !== sel && !sel.dataset.pending) sel.value = showing;
       const rb = $('.ready-btn', card);
       rb.disabled = !ctl;
       rb.classList.toggle('is-ready', p.ready);
@@ -591,7 +643,7 @@
     if (!ok) {
       const part = players.filter((p) => p.controller);
       if (coop) hint = 'Give at least one player a controller.';
-      else if (part.length < 2) hint = 'Battles need 2–4 players. Give another player a controller (or the Computer).';
+      else if (part.length < 2) hint = game.shown < 2 ? 'Battles need 2–4 players: add a player or the Computer.' : 'Battles need 2–4 players. Give another player a controller (or the Computer).';
       else if (!part.some((p) => !isCpu(p))) hint = 'At least one human player, please!';
       else hint = 'Put players on both teams.';
     }
@@ -604,6 +656,9 @@
     } else hint = 'Press fire on every controller, or click Start.';
     $('#start-hint').textContent = hint;
     $$('.ctrl-select option[value="cpu"]').forEach((o) => { o.hidden = coop; o.disabled = coop; });
+    $('.add-tile').classList.toggle('hidden', game.shown >= NP);
+    $('#btn-add-cpu').classList.toggle('hidden', coop);
+    fitLobby();
   }
 
   // The computer opponent (duels only): the world drives this tank itself.
@@ -657,6 +712,11 @@
         assignController(i, ctl);
       } catch (err) {
         if (err && err.name === 'NotFoundError') return; // picker closed
+        if (err && err.name === 'SecurityError') {
+          toast('The first time, the browser needs a mouse click to allow the Wii Remote: pick it in this menu with the mouse once.', '#ff5a4a', 7000);
+          refreshLobby();
+          return;
+        }
         console.error(err);
         toast(err && err.name === 'NoRemote' ? err.message : 'Could not use that Wii Remote: ' + (err && err.message ? err.message : err), '#ff5a4a', 7000);
         refreshLobby();
@@ -749,7 +809,41 @@
     refreshLobby();
   }
 
+  // Gamepads nobody is using: a fresh button press (returns pads pressed this frame)
+  function freePadPresses() {
+    const used = new Set(players.filter((p) => p.controller && p.controller.kind === 'gamepad').map((p) => p.controller.index));
+    const out = [];
+    for (const pad of RR.Input.gamepads()) {
+      const now = pad.buttons.map((b) => !!(b && b.pressed));
+      const prev = game.padPrev[pad.index] || now.map(() => true);
+      game.padPrev[pad.index] = now;
+      if (used.has(pad.index)) continue;
+      if (now.some((v, k) => v && !prev[k])) out.push(pad);
+    }
+    return out;
+  }
+
+  function padChoice(pad) {
+    const f = RR.Pad.padFamily(pad.id);
+    return f === 'xbox' || f === 'ps' || f === 'switch' ? 'pad-' + f : 'gamepad';
+  }
+
+  // A free controller pressed a button: it takes the first empty player card.
+  function joinWith(make, what) {
+    const i = freeSlot();
+    if (i < 0) {
+      toast(`All four players already have controllers (${what}).`, '#ff5a4a');
+      return;
+    }
+    assignController(i, make());
+    refreshLobby();
+  }
+
   function updateLobby(dt, inputs) {
+    const fresh = freePadPresses();
+    if (!game.gamepadWait) {
+      for (const pad of fresh) joinWith(() => new RR.GamepadController(pad, padChoice(pad)), 'gamepad');
+    }
     // Gamepad assignment: the first button press on an unused pad wins.
     if (game.gamepadWait) {
       if (performance.now() > game.gamepadWait.until) {
@@ -792,7 +886,8 @@
       }
       if (inp.fire > 0) {
         pv.recoil = 1;
-        toggleReady(i);
+        // keyboard + mouse has no menu highlight: fire still means "ready"
+        if (p.controller.kind === 'kbm') toggleReady(i);
       }
       if (inp.mine > 0) p.controller.rumble(40, 0.4);
     });
@@ -814,8 +909,8 @@
       const cv = $(`.player-card[data-player="${i}"] .tank-preview canvas`);
       const ctx = cv.getContext('2d');
       ctx.clearRect(0, 0, cv.width, cv.height);
-      const s = 74;
-      const fake = { s, ox: cv.width / 2, oy: cv.height / 2 + 6 };
+      const s = Math.round(cv.height * 0.6);
+      const fake = { s, ox: cv.width / 2, oy: cv.height / 2 + s * 0.08 };
       ctx.fillStyle = 'rgba(0,0,0,0.12)';
       ctx.beginPath();
       ctx.ellipse(fake.ox + 6, fake.oy + 10, s * 0.55, s * 0.32, 0, 0, U.TAU);
@@ -1253,6 +1348,78 @@
     });
   });
 
+  // ---- controllers in menus ------------------------------------------------------------
+  // (Wi-Fi phones show their own card on the phone instead)
+  const navable = (p) => p.controller && !['cpu', 'kbm', 'wifi'].includes(p.controller.kind);
+  // The first player with a controller that can drive menus runs the whole screen.
+  function menuLeader() {
+    const k = players.findIndex(navable);
+    return k;
+  }
+
+  function updateMenus(dt, inputs) {
+    const lead = menuLeader();
+    const helpOpen = !$('#screen-help').classList.contains('hidden');
+    let scope = null, def = null;
+    if (helpOpen) { scope = $('#screen-help'); def = $('#btn-help-close'); }
+    else if (game.paused) { scope = $('#screen-pause'); def = $('#btn-resume'); }
+    else if (game.state === 'over') { scope = $('#screen-results'); def = $('#btn-rematch'); }
+    else if (game.state === 'lobby') { scope = $('#screen-lobby'); }
+    else if (game.state === 'title') { scope = $('#screen-title'); def = $('#btn-play'); }
+    players.forEach((p, i) => {
+      const inp = navable(p) ? inputs[i] : null;
+      let sc = null, d = null;
+      if (inp && game.state === 'lobby' && !helpOpen) {
+        // everyone can set up their own card; the menu player can reach everything
+        const card = $(`.player-card[data-player="${i}"]`);
+        sc = i === lead ? scope : card;
+        d = $('.ready-btn', card);
+      } else if (inp && i === lead) {
+        sc = scope; d = def;
+      }
+      RR.MenuNav.update(dt, i, sc ? inp : null, sc, d, colorOf(i).body, 'P' + (i + 1));
+      if (i === lead && inp) {
+        // B / mine closes the help; Start in the lobby starts the match
+        if (inp.mine > 0 && helpOpen && !('click' in inp)) show('#screen-help', false);
+        if (inp.pause > 0 && game.state === 'lobby' && !helpOpen && canStart()) startMatch();
+        else if (inp.pause > 0 && game.state === 'over') startMatch();
+      }
+    });
+  }
+
+  // Title screen: a button on any free gamepad or Wii Remote heads to the lobby
+  // as Player 1.
+  function updateTitle() {
+    const fresh = freePadPresses();
+    if (fresh.length) {
+      const pad = fresh[0];
+      audio.unlock();
+      goLobby();
+      if (!players[0].controller) assignController(0, new RR.GamepadController(pad, padChoice(pad)));
+      game.padPrev[pad.index] = pad.buttons.map(() => true);
+    }
+  }
+
+  function onWiimoteJoin(dev) {
+    if (game.state === 'title') {
+      goLobby();
+      if (players[0].controller) return;
+    }
+    if (game.state !== 'lobby') return;
+    const i = freeSlot();
+    if (i < 0) return;
+    RR.Wiimote.adopt(dev).then((ctl) => {
+      if (players[i].controller) {
+        const j = freeSlot();
+        if (j < 0) { ctl.dispose(); return; }
+        assignController(j, ctl);
+      } else {
+        assignController(i, ctl);
+      }
+      refreshLobby();
+    }).catch((err) => console.warn(err));
+  }
+
   function rumble(i, ms, strength) {
     const c = players[i] && players[i].controller;
     if (c) c.rumble(ms, strength);
@@ -1472,6 +1639,12 @@
       settings.names[i] = name;
       $(`.player-card[data-player="${i}"] .pname`).value = name;
     }
+    if (typeof profile.hat === 'string' && C.HATS.some((h) => h.id === profile.hat) && settings.unlocked.includes(profile.hat)) {
+      settings.hats[i] = profile.hat;
+      buildHatPickers();
+    }
+    if ((profile.team === 0 || profile.team === 1) && teamsOn()) settings.teams[i] = profile.team;
+    if (profile.ready === 'toggle') toggleReady(i);
     const ci = profile.color;
     if (ci < C.PLAYER_COLORS.length && !others(i).some((q) => q.colorIndex === ci) && ci !== p.colorIndex) {
       p.colorIndex = ci;
@@ -1587,7 +1760,8 @@
   function updateOver(inputs) {
     // Either controller's fire button starts a rematch (after a short delay
     // so a celebratory button-mash doesn't skip the results).
-    if (performance.now() - game.resultsAt > 2000 && inputs.some((inp) => inp && inp.fire > 0)) startMatch();
+    const lead = menuLeader();
+    if (performance.now() - game.resultsAt > 2000 && inputs.some((inp, i) => inp && inp.fire > 0 && i !== lead)) startMatch();
   }
 
   // ---------------------------------------------------------------------------
@@ -1650,6 +1824,57 @@
   }
 
   // Keep each phone's screen in sync (score, ammo, game state).
+  // ---- the lobby card on a Wi-Fi phone --------------------------------------------
+  const hatIcons = {};
+  function hatIcon(id) {
+    if (!hatIcons[id]) {
+      const cv = document.createElement('canvas');
+      cv.width = cv.height = 44;
+      const ctx = cv.getContext('2d');
+      if (id === 'none') {
+        ctx.strokeStyle = '#b9aea0'; ctx.lineWidth = 3.5;
+        ctx.beginPath(); ctx.arc(22, 22, 12, 0, Math.PI * 2); ctx.moveTo(13, 31); ctx.lineTo(31, 13); ctx.stroke();
+      } else {
+        RR.drawHat(ctx, id, 22, 29, 33, 0.3);
+      }
+      hatIcons[id] = cv.toDataURL('image/png');
+    }
+    return hatIcons[id];
+  }
+  const tankPics = {};
+  function tankPic(i) {
+    const key = `${players[i].colorIndex}|${hatOf(i)}`;
+    if (!tankPics[key]) {
+      const cv = document.createElement('canvas');
+      cv.width = 132; cv.height = 96;
+      const ctx = cv.getContext('2d');
+      const s = 58, fake = { s, ox: 66, oy: 52 };
+      ctx.fillStyle = 'rgba(0,0,0,0.18)';
+      ctx.beginPath(); ctx.ellipse(71, 61, s * 0.55, s * 0.32, 0, 0, U.TAU); ctx.fill();
+      RR.Renderer.prototype.drawTank.call(fake, ctx, { x: 0, y: 0, angle: 0, turret: -0.35, color: colorOf(i), treadPhase: 0, recoil: 0, hat: hatOf(i) });
+      tankPics[key] = cv.toDataURL('image/png');
+    }
+    return tankPics[key];
+  }
+  function sendLobbyCard(i, c) {
+    const p = players[i];
+    const coop = settings.mode !== 'duel';
+    const card = {
+      p: i, name: p.name, color: p.colorIndex,
+      taken: others(i).filter((q) => q.index < game.shown).map((q) => q.colorIndex),
+      hat: hatOf(i), teams: teamsOn(), team: teamOf(i), ready: p.ready,
+      mode: coop ? (settings.mode === 'campaign' ? 'Co-op campaign' : 'Survival') : teamsOn() ? 'Team battle' : 'Free-for-all',
+      hint: $('#start-hint').textContent,
+    };
+    const key = JSON.stringify(card) + settings.unlocked.join();
+    card.hats = C.HATS.map((h) => {
+      const ok = settings.unlocked.includes(h.id);
+      return { id: h.id, name: ok ? h.name : `Locked: ${h.how}`, ok, icon: ok ? hatIcon(h.id) : null };
+    });
+    card.tank = tankPic(i);
+    c.lobbyCard(card, key);
+  }
+
   function syncPhones() {
     players.forEach((p, i) => {
       const c = p.controller;
@@ -1671,6 +1896,7 @@
       );
       const rival = others(i).find((q) => q.controller) || others(i)[0];
       if (c.lobby) c.lobby(p.colorIndex, rival.colorIndex, p.name);
+      if (c.lobbyCard && game.state === 'lobby') sendLobbyCard(i, c);
     });
   }
 
@@ -1691,6 +1917,7 @@
 
     switch (game.state) {
       case 'title':
+        updateTitle();
         if (game.world) {
           game.world.tanks.forEach((t, i) => { t.turret += dt * (i ? -0.5 : 0.5); });
         }
@@ -1723,6 +1950,7 @@
     players.forEach((p) => { if (p.controller && p.controller.tick) p.controller.tick(); });
     RR.Wiimote.updatePointers(players, inputs, menus, colorOf);
     if (game.paused) refreshReconnectButtons();
+    updateMenus(dt, inputs);
     updateHud();
     syncPhones();
 
@@ -1738,6 +1966,7 @@
 
   function onResize() {
     renderer.resize(hudInset());
+    fitLobby();
   }
 
   function escapeHtml(s) {
@@ -1749,7 +1978,7 @@
   });
   window.addEventListener('gamepadconnected', (e) => {
     const f = RR.Pad.FAMILIES[RR.Pad.padFamily(e.gamepad.id)];
-    toast(`${f.name} connected. Pick it in a player's Controller menu.`);
+    toast(`${f.name} connected. Press a button on it to join.`);
   });
   window.addEventListener('gamepaddisconnected', () => toast('Gamepad disconnected', '#ff5a4a'));
   window.addEventListener('resize', onResize);
@@ -1761,6 +1990,9 @@
   applyPlayerColors();
   buildLobby();
   onResize();
+  RR.Wiimote.watchJoin(onWiimoteJoin, () => game.state === 'lobby' || game.state === 'title');
+  RR.MenuNav.onMove = () => audio.click();
+  RR.MenuNav.onRevert = () => refreshLobby();
   goTitle();
   if (DEBUG) show('#fps', true);
   requestAnimationFrame(frame);

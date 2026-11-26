@@ -30,11 +30,18 @@ RR.PROTO = {
   MSG_RUMBLE: 2,  // [2, duration/10ms, amplitude 1..255]
   MSG_STATUS: 3,  // [3, state, myWins, theirWins, winsNeeded, shellsLeft, minesLeft, ready, shellsMax]
   MSG_LOBBY: 5,   // [5, myColorIndex, otherColorIndex, nameLen, ...name UTF-8 (≤16 bytes)]
+  // Wi-Fi phones only: the player's whole lobby card, so the phone can show it.
+  //  [6, ...UTF-8 JSON { p, name, color, taken[], hats[{id,name,ok,icon}], hat,
+  //                      teams, team, ready, tank, mode, hint }]
+  MSG_LOBBY_CARD: 6,
 
   // Profile packet (phone -> game, on the input characteristic), sent from
   // the lobby when a player edits their name or colour:
   //  [0x50 'P', colorIndex (255 = unchanged), nameLen, ...name UTF-8 (≤17 bytes)]
   PROFILE: 0x50,
+  // Wi-Fi phones: a tap on their lobby card. [0x51, ...UTF-8 JSON
+  //  { name?, color?, hat?, team?, ready?: 'toggle' }]
+  PROFILE_JSON: 0x51,
 
   STATE: { LOBBY: 0, COUNTDOWN: 1, PLAYING: 2, ROUND_OVER: 3, MATCH_OVER: 4, PAUSED: 5 },
 

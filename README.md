@@ -23,7 +23,7 @@ Any player can also use a **Wii Remote + Nunchuk** (classic Wii Play controls), 
 - **Battle:** 2 to 4 players, first to 3, 5 or 7 rounds.
   - **Free-for-all:** last tank standing scores. With 3 or 4 players, the extra tanks start at the top and bottom of the arena.
   - **Teams:** pick **A** or **B** on each player card. Team-mates start side by side and wear a coloured ring (pink for A, blue for B). The last team with a tank left wins the round, and every member scores. A team-mate's mine won't go off when you drive over it, but its blast and stray shells still hurt.
-  - Players 3 and 4 fold away in the lobby until you pick a controller for them. Any player can be the **Computer** (a CPU tank that banks shots off walls and lays mines), so you can play 1 vs 3 CPUs, or you and a CPU against two friends.
+  - The lobby starts with just Player 1. Add players one at a time with **+ Add player** / **+ Add Computer**, or just press a button on a free gamepad or Wii Remote (one the browser has already been allowed to use) and it joins on the next card. The × on the last card removes that player. Any player can be the **Computer** (a CPU tank that banks shots off walls and lays mines), so you can play 1 vs 3 CPUs, or you and a CPU against two friends.
 - **Survival:** endless waves; see below.
 - **Co-op campaign:** one to four players team up against **20 stages** of CPU tanks.
   Clear every enemy tank to move on. You share 3 lives and get an extra life every 5 stages.
@@ -196,6 +196,19 @@ To use a controller, pick **Xbox controller**, **PlayStation controller**, **Nin
 - **Switch Pro / Joy-Con:** hold the small sync button until the lights run.
 
 The game reads the controller's name to show the right button names. Pads it doesn't recognise get a best-effort layout: the stick or D-pad drives, and if there is no second stick, the turret points the way you drive. Rumble works where the browser supports it (Xbox and PlayStation controllers in Chrome and Edge).
+
+### Phones in the lobby
+
+A phone joined over Wi-Fi (QR code) shows that player's own card while you're in the lobby: tap a colour, a hat and (in team battles) A or B, type a name, then tap **Ready**. When the match starts, it turns back into the controller. The Android Bluetooth app still uses its "tap your name" editor for name and colour.
+
+### Menus with a controller
+
+You don't need the mouse once controllers are connected. From the title screen, press a button on a gamepad or Wii Remote to go to the lobby as Player 1.
+
+- The **D-pad** moves your coloured highlight (the arrow keys for the arrow-keys player; a phone uses its stick). The sticks don't move it, so you can test-drive your tank on the card.
+- **Fire** presses the highlighted button (on a Wii Remote: **A**, or point at the screen and press **A**). On a drop-down, left/right changes the choice; on the Controller menu, press fire to apply it.
+- The first player with a controller can reach the whole screen. Everyone else can set up their own card: colour, hat, team and Ready.
+- **Start / Options / +** starts the match once it can start. **B** closes the help.
 
 ### Wii Remote + Nunchuk
 

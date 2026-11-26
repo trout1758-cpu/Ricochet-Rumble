@@ -64,6 +64,17 @@ The phone sends this on the input characteristic (or the Wi-Fi socket) in place 
 Every message fits in 20 bytes, the smallest Bluetooth LE packet, so nothing depends on a larger MTU.
 The game ignores profile packets outside the lobby, and colour requests that clash with the other player.
 
+## Lobby card (Wi-Fi phones only)
+
+Over Wi-Fi, where message size doesn't matter, the game also sends each phone its whole lobby card, and the phone shows it instead of the controller while the game is in its lobby:
+
+- game → phone: `6` followed by UTF-8 JSON
+  `{ p, name, color, taken: [colour indexes], hats: [{ id, name, ok, icon }], hat, teams, team, ready, tank, mode, hint }`.
+  `icon` and `tank` are PNG data URLs. It is only resent when something on the card changes.
+- phone → game: `0x51` followed by UTF-8 JSON with any of `{ name, color, hat, team, ready: "toggle" }`.
+
+The Android app never sends `0x51` and ignores message `6`.
+
 ## Wi-Fi transport
 
 Phones without the Android app use the web controller in `game/pad/`.
