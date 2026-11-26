@@ -205,20 +205,23 @@ The classic Wii Play Tanks controls:
 | --- | --- | --- | --- | --- |
 | Nunchuk stick | point the Wii Remote at the screen | B (trigger) or Z | A or C | + or Home |
 
-1. **Pair each Wii Remote with the computer once.**
-   - **Windows:** Settings → Bluetooth & devices → Add device → Bluetooth.
-     Press the red **sync** button inside the battery cover (or hold **1 + 2**).
-     Pick **Nintendo RVL-CNT-01**. If it asks for a PIN, leave it blank / skip.
-   - Plug the Nunchuk in before or after; either works.
-2. Open the game with the start script, in **Chrome** or **Edge**.
-3. Pick **Wii Remote + Nunchuk** in a player card's **Controller** menu and choose the remote in the list. Its player light comes on.
-4. In menus, the Wii Remote is a pointer: aim at a button and press **A** to click it.
+**With a Mayflash DolphinBar (recommended):**
 
-**Aiming needs a sensor bar** in front of or on top of the screen (a Wii's own bar needs the Wii switched on; USB sensor bars work too).
-Without one, the remote falls back to **tilt aiming**: tip it forwards/back and twist it left/right to swing the turret.
+1. Plug the DolphinBar into a USB port and put it above or below the screen. It is the sensor bar too.
+2. Set it to **mode 4**: press its **Mode** button until the 4th light is lit.
+3. Sync each Wii Remote to the bar: press the bar's **Sync** button, then the red **sync** button inside the remote's battery cover. The bar's light for that slot stays on. Plug in the Nunchuks.
+4. Open the game with the start script, in **Chrome** or **Edge**.
+5. Pick **Wii Remote + Nunchuk (DolphinBar)** in a player card's **Controller** menu.
+   - The first time, the browser asks to use **Nintendo RVL-CNT-01**. Pick it and click **Connect**. After that it isn't asked again.
+   - The bar always shows four slots, even empty ones. The game checks them all and takes the one with a remote in it. If several free remotes are linked, press **A** on the one you want.
+6. In menus, the Wii Remote is a pointer: aim at a button and press **A** to click it.
+
+If a remote turns itself off, press any button on it. It links back to the bar and the game picks it up again by itself; a match pauses while it's gone.
+
+**Without a DolphinBar:** pair the remote with the computer over Bluetooth (Windows: Settings → Bluetooth & devices → Add device → Bluetooth, press the red **sync** button, pick **Nintendo RVL-CNT-01**, skip the PIN), then pick the same menu option. Aiming then needs a separate sensor bar.
+
+Without a sensor bar, the remote falls back to **tilt aiming**: tip it forwards/back and twist it left/right to swing the turret.
 Without a Nunchuk, the D-pad drives.
-
-If a Wii Remote turns itself off, press any button on it to reconnect (on Windows you may need to press sync again).
 
 ---
 

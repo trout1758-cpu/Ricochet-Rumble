@@ -649,12 +649,17 @@
         return;
       }
       try {
-        toast('Pick the Wii Remote (“Nintendo RVL-CNT-01”) in the list. Pair it in your computer’s Bluetooth settings first.', colorOf(i).body, 6000);
-        assignController(i, await RR.Wiimote.connect());
+        toast('Looking for a Wii Remote… If the browser asks, pick “Nintendo RVL-CNT-01” (your DolphinBar, set to mode 4).', colorOf(i).body, 6000);
+        const ctl = await RR.Wiimote.connect({
+          onChoose: (n) => toast(`${n} Wii Remotes found: press A on the one for ${players[i].name}.`, colorOf(i).body, 8000),
+        });
+        if (players[i].controller && players[i].controller.kind === 'wiimote') removeController(i, true);
+        assignController(i, ctl);
       } catch (err) {
         if (err && err.name === 'NotFoundError') return; // picker closed
         console.error(err);
-        toast('Could not use that Wii Remote: ' + (err && err.message ? err.message : err), '#ff5a4a', 6000);
+        toast(err && err.name === 'NoRemote' ? err.message : 'Could not use that Wii Remote: ' + (err && err.message ? err.message : err), '#ff5a4a', 7000);
+        refreshLobby();
       }
     } else if (src === 'gamepad' || src.startsWith('pad-')) {
       game.gamepadWait = { player: i, src, until: performance.now() + 12000 };
@@ -1715,6 +1720,7 @@
     renderer.render(game.paused ? 0 : dt, view);
     // Wii Remote pointers act as cursors in menus (A clicks)
     const menus = game.state === 'lobby' || game.state === 'over' || game.state === 'title' || game.paused;
+    players.forEach((p) => { if (p.controller && p.controller.tick) p.controller.tick(); });
     RR.Wiimote.updatePointers(players, inputs, menus, colorOf);
     if (game.paused) refreshReconnectButtons();
     updateHud();

@@ -7,9 +7,12 @@
 // remote falls back to tilt aiming: tip and twist it to swing the turret.
 // In menus the pointer is a cursor and A clicks whatever it points at.
 //
-// Works in Chrome / Edge on a computer where the Wii Remote is paired over
-// Bluetooth (Windows: Settings > Bluetooth > Add device, press the red sync
-// button). The page must be served from localhost (the start scripts do it).
+// Works in Chrome / Edge with a Mayflash DolphinBar in mode 4 (it passes each
+// Wii Remote through as a USB HID device and doubles as the sensor bar), or
+// with the remote paired straight over Bluetooth. The DolphinBar always shows
+// four slots, even empty ones, so connecting probes every slot and keeps the
+// one with a remote in it (or the one you press a button on). The page must
+// be served from localhost (the start scripts do it).
 window.RR = window.RR || {};
 
 (function () {
@@ -92,7 +95,10 @@ window.RR = window.RR || {};
       this.device = device;
       this.label = 'Wii Remote';
       this.detail = 'Connecting…';
-      this.connected = true;
+      this.linked = true;          // the HID device is there (always true on a DolphinBar)
+      this.lastReportAt = 0;
+      this.lastRestart = 0;
+      this.wasLive = true;
       this.fire = 0; this.mine = 0; this.pause = 0; this.click = 0;
       this.prevButtons = 0;
       this.state = { buttons: 0, accel: { x: 0, y: 0, z: 1 }, ir: [], nunchuk: null };
@@ -109,8 +115,26 @@ window.RR = window.RR || {};
       device.addEventListener('inputreport', this.onReport);
     }
 
+    // A DolphinBar slot stays plugged in when its remote powers off, so we also
+    // treat a remote that has gone quiet (reports stream ~100 a second) as gone.
+    get connected() {
+      if (!this.linked) return false;
+      return !this.started || performance.now() - this.lastReportAt < 2500;
+    }
+    set connected(v) { this.linked = !!v; }
+
+    // called every frame or so; tells the game when the remote drops or returns
+    tick() {
+      const live = this.connected;
+      if (live !== this.wasLive) {
+        this.wasLive = live;
+        if (this.onchange) this.onchange();
+      }
+    }
+
     async start() {
       this.started = false;
+      this.lastReportAt = performance.now();
       if (!this.device.opened) await this.device.open();
       await this.setLeds();
       await this.send(0x15, [0x00]); // status: is a Nunchuk plugged in?
@@ -176,6 +200,18 @@ window.RR = window.RR || {};
     }
 
     handle(id, d) {
+      const now = performance.now();
+      const quiet = now - this.lastReportAt;
+      this.lastReportAt = now;
+      // The remote came back (after powering off, or re-syncing to the
+      // DolphinBar): it has forgotten its report mode and IR set-up.
+      if (this.started && !this.restarting && (quiet > 1500 || (id >= 0x30 && id <= 0x3f && id !== 0x37)) && now - this.lastRestart > 2000) {
+        this.lastRestart = now;
+        this.restarting = true;
+        this.queue = Promise.resolve();
+        this.start().catch((err) => console.warn(err)).finally(() => { this.restarting = false; });
+      }
+      this.tick();
       if (id === 0x20) {
         // status report: the remote also drops back to buttons-only mode
         const ext = !!(d[2] & 0x02);
@@ -277,6 +313,46 @@ window.RR = window.RR || {};
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   const active = new Set();
 
+  const withTimeout = (promise, ms) => Promise.race([promise, wait(ms).then(() => { throw new Error('timeout'); })]);
+
+  // Does this HID device have a Wii Remote behind it? Asks for a status report;
+  // an empty DolphinBar slot refuses the write or never answers.
+  async function probe(dev) {
+    try {
+      if (!dev.opened) await withTimeout(dev.open(), 1500);
+    } catch (e) {
+      return false;
+    }
+    let answered = false;
+    const on = () => { answered = true; };
+    dev.addEventListener('inputreport', on);
+    try {
+      await withTimeout(dev.sendReport(0x15, Uint8Array.from([0x00])), 800);
+      for (let k = 0; k < 10 && !answered; k++) await wait(50);
+    } catch (e) {
+      /* empty slot */
+    }
+    dev.removeEventListener('inputreport', on);
+    return answered;
+  }
+
+  // Several remotes answering: the first one to press a button wins.
+  function firstPress(devs, ms) {
+    return new Promise((resolve) => {
+      const offs = [];
+      const done = (d) => { offs.forEach((f) => f()); clearTimeout(t); resolve(d); };
+      const t = setTimeout(() => done(null), ms);
+      for (const d of devs) {
+        const f = (e) => {
+          const b = new Uint8Array(e.data.buffer, e.data.byteOffset, Math.min(2, e.data.byteLength));
+          if (e.reportId >= 0x30 && e.reportId <= 0x3f && b.length === 2 && ((b[0] | (b[1] << 8)) & 0x9f1f)) done(d);
+        };
+        d.addEventListener('inputreport', f);
+        offs.push(() => d.removeEventListener('inputreport', f));
+      }
+    });
+  }
+
   const Wiimote = {
     problem() {
       if (!('hid' in navigator)) return 'This browser can’t talk to Wii Remotes. Use Google Chrome or Microsoft Edge on a computer.';
@@ -284,17 +360,50 @@ window.RR = window.RR || {};
       return '';
     },
 
-    // Ask the browser for a Wii Remote (shows its device picker), skipping any
-    // that are already in use.
-    async connect() {
+    // Find a free Wii Remote. Uses the devices the browser already allowed
+    // (all four DolphinBar slots come together); shows the browser's device
+    // picker only when none of those has a free remote behind it.
+    //   onChoose(): called when several remotes are free and one must be picked
+    //   by pressing a button on it.
+    async connect({ onChoose } = {}) {
       const filters = PRODUCTS.map((productId) => ({ vendorId: VENDOR, productId }));
-      const devices = await navigator.hid.requestDevice({ filters });
-      const dev = devices.find((d) => ![...active].some((c) => c.device === d));
-      if (!dev) {
-        const err = new Error(devices.length ? 'That Wii Remote is already in use.' : 'No Wii Remote picked.');
-        err.name = devices.length ? 'InUse' : 'NotFoundError';
+      const isWii = (d) => d.vendorId === VENDOR && PRODUCTS.includes(d.productId);
+      const free = (list) => list.filter((d) => isWii(d) && ![...active].some((c) => c.device === d));
+      const live = async (list) => {
+        const ok = await Promise.all(list.map(probe));
+        const out = list.filter((_, k) => ok[k]);
+        // leave empty slots closed so they don't hold anything open
+        list.forEach((d, k) => { if (!ok[k] && d.opened) d.close().catch(() => {}); });
+        return out;
+      };
+      let found = await live(free(await navigator.hid.getDevices()));
+      if (!found.length) {
+        const picked = free(await navigator.hid.requestDevice({ filters }));
+        if (!picked.length) {
+          const err = new Error('No Wii Remote picked.');
+          err.name = 'NotFoundError';
+          throw err;
+        }
+        // the picker may hand back just one slot; the bar's others come with it
+        const all = free(await navigator.hid.getDevices());
+        found = await live(all.length >= picked.length ? all : picked);
+      }
+      if (!found.length) {
+        const err = new Error('No Wii Remote answered. Press a button on it so it links up (the DolphinBar light for its slot comes on), check the DolphinBar is in mode 4, then try again.');
+        err.name = 'NoRemote';
         throw err;
       }
+      let dev = found[0];
+      if (found.length > 1) {
+        if (onChoose) onChoose(found.length);
+        dev = await firstPress(found, 15000);
+        if (!dev) {
+          const err = new Error('No button pressed. Press A on the Wii Remote you want, right after picking it.');
+          err.name = 'NoRemote';
+          throw err;
+        }
+      }
+      found.forEach((d) => { if (d !== dev && d.opened) d.close().catch(() => {}); });
       const ctl = new WiimoteController(dev);
       await ctl.start();
       active.add(ctl);
