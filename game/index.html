@@ -68,6 +68,7 @@
       <h1 class="logo"><span>Ricochet</span><span>Rumble</span></h1>
       <p class="tagline">2–4 player tank battles · co-op campaign vs CPU tanks</p>
       <button id="btn-play" class="btn big">Play</button>
+      <div><button class="btn small ghost settings-btn" id="btn-settings-title">⚙ Settings</button></div>
       <p class="hint">Press a button on a gamepad or Wii Remote (or click Play). Up to four players: phones, Wii Remotes, Xbox / PlayStation / Switch controllers or a keyboard. Short on players? Add Computer tanks.</p>
     </div>
   </section>
@@ -288,7 +289,7 @@
               <div class="seg" id="set-music"><button data-v="on">On</button><button data-v="off">Off</button></div>
             </div>
             <div class="setting">
-              <button class="btn small ghost help-btn" id="btn-help">How to play</button>
+              <span class="help-btns"><button class="btn small ghost" id="btn-settings-lobby" aria-label="Settings">⚙</button><button class="btn small ghost help-btn" id="btn-help">How to play</button></span>
             </div>
           </div>
         </div>
@@ -315,6 +316,35 @@
           <p class="lobby-note" id="ble-note"></p>
         </div>
       </div>
+    </div>
+  </section>
+
+  <!-- Settings -->
+  <section id="screen-settings" class="screen dim hidden">
+    <div class="panel settings">
+      <h2>Settings</h2>
+      <div class="app-only hidden">
+        <h3>Updates</h3>
+        <p class="set-version" id="app-version"></p>
+        <p class="set-status" id="update-status"></p>
+        <div class="row">
+          <button class="btn" id="btn-check-update">Check for updates</button>
+          <button class="btn hidden" id="btn-install-update">Update now</button>
+        </div>
+        <p class="set-note hidden" id="app-update-note"></p>
+        <h3>Window</h3>
+        <div class="row">
+          <button class="btn small ghost" id="btn-fullscreen">Full screen on / off (F11)</button>
+          <button class="btn small ghost" id="btn-quit-app">Quit Ricochet Rumble</button>
+        </div>
+      </div>
+      <div class="browser-only">
+        <h3>Updates</h3>
+        <p>You're playing in a web browser. Get the <b>Ricochet Rumble app for Windows</b> from the
+          <a href="https://github.com/trout1758-cpu/Ricochet-Rumble/releases/latest" target="_blank" rel="noopener">Releases page</a>
+          to update with one click from this menu. (This copy updates with <code>git pull</code>.)</p>
+      </div>
+      <button class="btn ghost" id="btn-settings-close">Close</button>
     </div>
   </section>
 

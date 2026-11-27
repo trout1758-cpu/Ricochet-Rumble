@@ -13,6 +13,7 @@ The project has two parts:
 | Part | What it is | Where |
 | --- | --- | --- |
 | **The game** | Runs in Chrome or Edge on your computer. | [`game/`](game) |
+| **Windows app** | The game as its own app (no browser), with one-click updates. | [`app/`](app) |
 | **Wi-Fi controller** | A web page the computer serves to phones on the same network. Works on iPhones and Android phones with nothing to install. | [`game/pad/`](game/pad) |
 | **Ricochet Pad** | Android app that connects over Bluetooth instead, for when there's no usable Wi-Fi. | [`controller-android/`](controller-android) |
 
@@ -79,6 +80,27 @@ Drive over one to take it:
 | Rapid fire | green | Three more shells in the air and a faster trigger for 10 s |
 
 ---
+
+## The Windows app (easiest)
+
+Instead of the browser and the start script, you can install Ricochet Rumble as a normal Windows app:
+
+1. Open the repository's **[Releases page](https://github.com/trout1758-cpu/Ricochet-Rumble/releases/latest)** and download **`RicochetRumble-Setup-<version>.exe`**.
+   (Or the **Portable** exe, which runs from anywhere without installing.)
+2. Run it. Windows may say it "protected your PC" because the app isn't code-signed: click **More info → Run anyway**.
+   It installs in a few seconds and adds **Ricochet Rumble** to the desktop and Start menu.
+3. The first time it starts, Windows asks whether to allow network access: click **Allow**, so Wi-Fi phones can connect.
+
+The app opens the game full screen (**F11** switches full screen on and off) and serves the Wi-Fi phone controller itself.
+It also allows Wii Remotes / the DolphinBar and the Android Bluetooth app without the browser's device pickers.
+
+**Updating:** open **⚙ Settings** (on the title screen, or the ⚙ next to *How to play* in the lobby) and click **Check for updates**, then **Update now**.
+The app downloads the newest game from GitHub and restarts the game in a second; your settings, names and hats stay.
+It also checks quietly a few seconds after it starts and tells you when there's an update.
+The app itself (the .exe) only needs reinstalling when Settings says a new *app* version is out; download it from the Releases page the same way.
+
+The Releases page is filled in by GitHub automatically: the **Build Windows app** workflow (`.github/workflows/app.yml`) builds the installer on a Windows machine whenever `app/` changes on `main`, or when you run it by hand from the **Actions** tab.
+To work on the app itself: `cd app`, `npm install`, `npm start` (runs it from the repository's `game/` folder), `npm test`.
 
 ## What you need
 
@@ -400,6 +422,7 @@ game/                      Desktop game (plain HTML/CSS/JS, no build step)
   js/campaign.js           Co-op campaign stages
   js/input.js              Keyboard, mouse and gamepad
   js/wiimote.js            Wii Remotes + Nunchuk over WebHID (IR pointer, tilt fallback, rumble)
+  js/menunav.js            Menus with any controller (D-pad highlight, drop-down picker)
   js/ble.js                Android app over Web Bluetooth
   js/wifi.js               Phone controllers over Wi-Fi (WebSocket via the launcher)
   js/vendor/qrcode.js      QR code generator (Kazuhiko Arase, MIT licence)
@@ -407,6 +430,12 @@ game/                      Desktop game (plain HTML/CSS/JS, no build step)
   js/protocol.js           Bluetooth packet format
   js/main.js               Menus, rounds, HUD, controller feedback
   tests/run.js             Headless tests for the simulation and protocol
+app/                       Windows app (Electron): window, Wi-Fi server, device access, updates
+  main.js / preload.js     App window and what the game may ask the app to do
+  lib/server.js            Local server + phone relay (same as launcher/, in Node)
+  lib/updater.js           "Check for updates": downloads the newest game/ from GitHub
+  test/run.js              Tests for the server, relay and updater (npm test)
+.github/workflows/app.yml  Builds the Windows installer and publishes it on Releases
 controller-android/        Ricochet Pad (Kotlin, no external libraries)
 launcher/server.py         Local server for macOS / Linux (game, Wi-Fi controller, relay)
 launcher/RicochetServer.cs Same server for Windows, compiled by start-game.ps1

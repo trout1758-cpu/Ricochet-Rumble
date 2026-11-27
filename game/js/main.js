@@ -219,7 +219,8 @@
     } else if (game.state === 'replay' && ['Escape', 'Space', 'Enter'].includes(e.code)) {
       endReplay();
     } else if (e.code === 'Escape') {
-      if (!$('#screen-help').classList.contains('hidden')) show('#screen-help', false);
+      if (!$('#screen-settings').classList.contains('hidden')) show('#screen-settings', false);
+      else if (!$('#screen-help').classList.contains('hidden')) show('#screen-help', false);
       else if (inMatch()) togglePause('');
     }
   });
@@ -418,6 +419,7 @@
       startMatch();
     });
     $('#btn-help').addEventListener('click', () => show('#screen-help', true));
+    setupSettings();
     $('#btn-add-player').addEventListener('click', (e) => { e.currentTarget.blur(); addPlayer(false); });
     $('#btn-add-cpu').addEventListener('click', (e) => { e.currentTarget.blur(); addPlayer(true); });
     $$('.card-x').forEach((b) => b.addEventListener('click', (e) => { e.currentTarget.blur(); dropLastPlayer(); }));
@@ -442,6 +444,106 @@
     RR.Wifi.onNewPad = onWifiPad;
     RR.Wifi.onUrls = () => { if (game.qrWait) refreshLobby(); };
     RR.Wifi.start();
+  }
+
+  // ---- settings: updates when running as the Windows app --------------------------------
+  const appShell = window.rrApp || null;
+  let pendingUpdate = null;
+
+  function fmtDate(iso) {
+    if (!iso) return 'unknown date';
+    try { return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }); } catch (e) { return iso.slice(0, 10); }
+  }
+
+  function setUpdateStatus(text, kind) {
+    const el = $('#update-status');
+    el.textContent = text;
+    el.className = 'set-status' + (kind ? ' ' + kind : '');
+  }
+
+  async function refreshSettings() {
+    $$('.app-only').forEach((el) => el.classList.toggle('hidden', !appShell));
+    $$('.browser-only').forEach((el) => el.classList.toggle('hidden', !!appShell));
+    if (!appShell) return;
+    const info = await appShell.info();
+    const g = info.game;
+    $('#app-version').textContent = `App ${info.app} · game from ${fmtDate(g.date)}${g.sha ? ' (' + g.sha.slice(0, 7) + ')' : ''}${g.source === 'downloaded' ? ' · updated' : ''}`;
+  }
+
+  function showUpdateResult(r) {
+    $('#btn-install-update').classList.add('hidden');
+    $('#app-update-note').classList.add('hidden');
+    if (!r.ok) { setUpdateStatus(r.error || 'Could not check for updates.', 'bad'); return; }
+    if (r.available) {
+      pendingUpdate = r.latest;
+      setUpdateStatus(`New version from ${fmtDate(r.latest.date)}: “${r.latest.message}”`, 'good');
+      $('#btn-install-update').classList.remove('hidden');
+    } else {
+      setUpdateStatus('You have the newest version of the game.', 'good');
+    }
+    if (r.app) {
+      const note = $('#app-update-note');
+      note.innerHTML = '';
+      note.append(`A new version of the app itself (${r.app.version}) is available. `);
+      const a = document.createElement('a');
+      a.href = '#';
+      a.textContent = 'Download it from the Releases page';
+      a.addEventListener('click', (e) => { e.preventDefault(); appShell.openLink(r.app.url); });
+      note.append(a, ' and run it to update the app.');
+      note.classList.remove('hidden');
+    }
+  }
+
+  async function checkForUpdates(quiet) {
+    if (!appShell) return;
+    if (!quiet) setUpdateStatus('Checking…');
+    const r = await appShell.checkForUpdates();
+    if (quiet) {
+      if (r.ok && (r.available || r.app)) {
+        showUpdateResult(r);
+        toast('An update for Ricochet Rumble is ready: open ⚙ Settings to install it.', '#5cc461', 7000);
+      }
+      return;
+    }
+    showUpdateResult(r);
+  }
+
+  async function installUpdate() {
+    if (!appShell || !pendingUpdate) return;
+    $('#btn-install-update').disabled = true;
+    $('#btn-check-update').disabled = true;
+    const r = await appShell.installUpdate(pendingUpdate);
+    if (r.ok) {
+      setUpdateStatus('Updated! Restarting the game…', 'good');
+      setTimeout(() => appShell.reload(), 900);
+    } else {
+      setUpdateStatus('Update failed: ' + r.error, 'bad');
+      $('#btn-install-update').disabled = false;
+      $('#btn-check-update').disabled = false;
+    }
+  }
+
+  function openSettings() {
+    show('#screen-settings', true);
+    refreshSettings();
+  }
+
+  function setupSettings() {
+    $('#btn-settings-title').addEventListener('click', (e) => { e.currentTarget.blur(); audio.click(); openSettings(); });
+    $('#btn-settings-lobby').addEventListener('click', (e) => { e.currentTarget.blur(); audio.click(); openSettings(); });
+    $('#btn-settings-close').addEventListener('click', () => { audio.click(); show('#screen-settings', false); });
+    $('#btn-check-update').addEventListener('click', () => checkForUpdates(false));
+    $('#btn-install-update').addEventListener('click', () => installUpdate());
+    $('#btn-fullscreen').addEventListener('click', () => appShell && appShell.toggleFullscreen());
+    $('#btn-quit-app').addEventListener('click', () => appShell && appShell.quit());
+    if (appShell) {
+      appShell.onProgress((p) => {
+        if (p.step === 'download') setUpdateStatus(`Downloading… ${(p.bytes / 1048576).toFixed(1)} MB`);
+        else if (p.step === 'unpack') setUpdateStatus('Unpacking…');
+      });
+      // look for updates quietly a few seconds after starting
+      setTimeout(() => checkForUpdates(true), 4000);
+    }
   }
 
   // ---- players joining one at a time ----------------------------------------------
@@ -1365,7 +1467,9 @@
     const lead = menuLeader();
     const helpOpen = !$('#screen-help').classList.contains('hidden');
     let scope = null, def = null;
-    if (helpOpen) { scope = $('#screen-help'); def = $('#btn-help-close'); }
+    const settingsOpen = !$('#screen-settings').classList.contains('hidden');
+    if (settingsOpen) { scope = $('#screen-settings'); def = $('#btn-install-update').classList.contains('hidden') ? $('#btn-check-update') : $('#btn-install-update'); }
+    else if (helpOpen) { scope = $('#screen-help'); def = $('#btn-help-close'); }
     else if (game.paused) { scope = $('#screen-pause'); def = $('#btn-resume'); }
     else if (game.state === 'over') { scope = $('#screen-results'); def = $('#btn-rematch'); }
     else if (game.state === 'lobby') { scope = $('#screen-lobby'); }
@@ -1373,7 +1477,7 @@
     players.forEach((p, i) => {
       const inp = navable(p) ? inputs[i] : null;
       let sc = null, d = null;
-      if (inp && game.state === 'lobby' && !helpOpen) {
+      if (inp && game.state === 'lobby' && !helpOpen && !settingsOpen) {
         // everyone can set up their own card; the menu player can reach everything
         const card = $(`.player-card[data-player="${i}"]`);
         sc = i === lead ? scope : card;
@@ -1384,8 +1488,10 @@
       RR.MenuNav.update(dt, i, sc ? inp : null, sc, d, colorOf(i).body, 'P' + (i + 1));
       if (i === lead && inp) {
         // B / mine closes the help; Start in the lobby starts the match
-        if (helpOpen && (inp.back > 0 || (inp.back == null && inp.mine > 0))) show('#screen-help', false);
-        if (inp.pause > 0 && game.state === 'lobby' && !helpOpen && canStart()) startMatch();
+        const backBtn = inp.back > 0 || (inp.back == null && inp.mine > 0);
+        if (settingsOpen && backBtn) show('#screen-settings', false);
+        else if (helpOpen && backBtn) show('#screen-help', false);
+        if (inp.pause > 0 && game.state === 'lobby' && !helpOpen && !settingsOpen && canStart()) startMatch();
         else if (inp.pause > 0 && game.state === 'over') startMatch();
       }
     });

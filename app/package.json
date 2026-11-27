@@ -1,0 +1,38 @@
+{
+  "name": "ricochet-rumble",
+  "productName": "Ricochet Rumble",
+  "version": "1.0.0",
+  "description": "Ricochet Rumble: toy tank battles for 2-4 players",
+  "main": "main.js",
+  "private": true,
+  "license": "UNLICENSED",
+  "scripts": {
+    "start": "electron .",
+    "test": "node test/run.js",
+    "dist": "electron-builder --win --publish never"
+  },
+  "devDependencies": {
+    "electron": "45.3.2",
+    "electron-builder": "26.18.1"
+  },
+  "build": {
+    "appId": "com.ricochetrumble.app",
+    "productName": "Ricochet Rumble",
+    "files": ["main.js", "preload.js", "lib/**", "build/icon.png", "package.json"],
+    "extraResources": [{ "from": "../game", "to": "game", "filter": ["**/*", "!tests/**"] }],
+    "directories": { "output": "dist", "buildResources": "build" },
+    "win": {
+      "icon": "build/icon.png",
+      "target": [{ "target": "nsis", "arch": ["x64"] }, { "target": "portable", "arch": ["x64"] }]
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Ricochet Rumble",
+      "artifactName": "RicochetRumble-Setup-${version}.exe"
+    },
+    "portable": { "artifactName": "RicochetRumble-Portable-${version}.exe" }
+  }
+}

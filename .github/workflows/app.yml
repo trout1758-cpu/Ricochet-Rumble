@@ -1,0 +1,73 @@
+# Builds the Ricochet Rumble Windows app and publishes it on the Releases page.
+# Runs when the app shell (app/) changes on main, or by hand from the Actions tab
+# ("Build Windows app" > "Run workflow"). Game-only changes don't need a new
+# app: the app updates the game itself from Settings > Check for updates.
+name: Build Windows app
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - '.github/workflows/app.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Stamp the bundled game's version
+        shell: bash
+        run: |
+          sha=$(git log -1 --format=%H -- game)
+          date=$(git log -1 --format=%cI -- game)
+          printf '{"sha":"%s","date":"%s"}\n' "$sha" "$date" > game/build.json
+          cat game/build.json
+
+      - name: Install
+        working-directory: app
+        run: npm ci
+
+      - name: Test
+        working-directory: app
+        run: npm test
+
+      - name: Build installer and portable app
+        working-directory: app
+        run: npx electron-builder --win --x64 --publish never
+
+      - name: App version
+        id: v
+        shell: bash
+        run: echo "version=$(node -p "require('./app/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: app-v${{ steps.v.outputs.version }}
+          name: Ricochet Rumble app ${{ steps.v.outputs.version }}
+          make_latest: true
+          body: |
+            **Download `RicochetRumble-Setup-${{ steps.v.outputs.version }}.exe`** and run it to install Ricochet Rumble on Windows
+            (or use the Portable exe, which runs without installing).
+
+            Windows may say it "protected your PC" because the app isn't signed: click **More info** > **Run anyway**.
+            When Windows asks whether to allow network access, click **Allow** so Wi-Fi phones can connect.
+
+            After that, update the game from inside the app: **⚙ Settings > Check for updates**.
+          files: |
+            app/dist/RicochetRumble-Setup-*.exe
+            app/dist/RicochetRumble-Portable-*.exe

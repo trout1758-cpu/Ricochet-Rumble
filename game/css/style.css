@@ -641,6 +641,22 @@ body.letterbox #letterbox-bars i { height: 7vh; }
 }
 @keyframes ring-pulse { 50% { box-shadow: 0 0 0 2px #fff, 0 0 4px var(--pc, #fff); } }
 
+/* ---------- settings ---------- */
+.settings { width: min(92vw, 620px); text-align: left; }
+.settings h2 { text-align: center; }
+.settings h3 { font-family: var(--display); font-weight: 400; font-size: 22px; margin: 14px 0 6px; }
+.settings p { margin: 6px 0; line-height: 1.4; }
+.settings .row { justify-content: flex-start; gap: 4px; }
+.settings > .btn { display: block; margin: 16px auto 0; }
+.set-version { font-weight: 800; color: var(--ink-soft); }
+.set-status { font-weight: 800; min-height: 1.4em; }
+.set-status.good { color: var(--good-edge); }
+.set-status.bad { color: #b3261e; }
+.set-note { background: var(--paper-2); border-radius: 12px; padding: 8px 12px; font-size: 14px; }
+.settings-btn { margin-top: 18px; }
+.help-btns { margin-left: auto; display: flex; gap: 6px; }
+.help-btns .help-btn { margin: 0; }
+
 /* ---------- drop-down picker for controllers ---------- */
 .nav-picker { position: fixed; inset: 0; z-index: 140; background: rgba(18, 14, 26, 0.6); display: flex; align-items: center; justify-content: center; padding: 3vh 3vw; }
 .nav-picker-box { background: var(--paper); border-radius: 20px; padding: 14px 18px; box-shadow: 0 10px 0 var(--edge), 0 20px 40px rgba(0, 0, 0, 0.45); max-height: 94vh; max-width: 94vw; display: flex; flex-direction: column; gap: 10px; }
