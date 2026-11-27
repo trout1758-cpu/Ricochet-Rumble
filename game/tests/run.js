@@ -736,6 +736,44 @@ console.log('Wii Remote');
       if (Math.hypot(sp[0].x - sp[2].x, sp[0].y - sp[2].y) > 3.2) throw new Error(`${def.name}: team A split up`);
     }
   });
+  test('battle: starting spots are shuffled each round', () => {
+    let seed = 7;
+    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    const key = (p) => `${p.x},${p.y}`;
+    for (const def of RR.ARENA_DEFS) {
+      const a = RR.buildArena(def);
+      const starts = new Set(a.spawns.map(key));
+      const seen2 = new Set(), seen4 = new Set(), sides = new Set();
+      for (let round = 0; round < 40; round++) {
+        // two players: always the arena's matching pair, either way round
+        const two = RR.Spawns.battle(def, [0, 1], null, rnd);
+        if (!starts.has(key(two[0])) || !starts.has(key(two[1])) || key(two[0]) === key(two[1])) throw new Error(`${def.name}: 2-player starts`);
+        seen2.add(key(two[0]));
+        // four players: four different floor spots, a different line-up each time
+        const four = RR.Spawns.battle(def, [0, 1, 2, 3], null, rnd);
+        if (new Set(four.map(key)).size !== 4) throw new Error(`${def.name}: 4 spots must differ`);
+        four.forEach((p) => { if (a.grid[Math.floor(p.y) * C.COLS + Math.floor(p.x)] !== RR.TILE.FLOOR) throw new Error(`${def.name}: not on floor`); });
+        seen4.add(four.map(key).join('|'));
+        // teams: team-mates together, either side
+        const tm = RR.Spawns.battle(def, [0, 1, 2, 3], [0, 1, 0, 1], rnd);
+        if (Math.hypot(tm[0].x - tm[2].x, tm[0].y - tm[2].y) > 3.2) throw new Error(`${def.name}: team A split up`);
+        sides.add(tm[0].x < C.COLS / 2 ? 'left' : 'right');
+      }
+      if (seen2.size !== 2) throw new Error(`${def.name}: player 1 always starts on the same side`);
+      if (seen4.size < 8) throw new Error(`${def.name}: 4-player line-ups barely change (${seen4.size})`);
+      if (sides.size !== 2) throw new Error(`${def.name}: team A always gets the same side`);
+    }
+  });
+  test('battle: three players use a random three of the four spots', () => {
+    const def = RR.ARENA_DEFS[0];
+    const used = new Set();
+    for (let k = 0; k < 60; k++) {
+      const sp = RR.Spawns.battle(def, [0, 1, 2], null, Math.random);
+      if (new Set(sp.map((p) => `${p.x},${p.y}`)).size !== 3) throw new Error('three different spots');
+      sp.forEach((p) => used.add(`${p.x},${p.y}`));
+    }
+    if (used.size !== 4) throw new Error('all four spots should come up');
+  });
   test('battle: four tanks, absent ones stay out', () => {
     const w = makeWorld(RR.ARENA_DEFS[0], { colors: four, players: 4, absent: [3], spawns: RR.Spawns.battle(RR.ARENA_DEFS[0], [0, 1, 2], null) });
     if (w.tanks.length !== 4) throw new Error('expected 4 tanks');

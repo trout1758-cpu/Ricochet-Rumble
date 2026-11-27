@@ -79,13 +79,33 @@ window.RR = window.RR || {};
   // Free-for-all uses the arena's two starts plus a top and a bottom spot
   // (the bottom one the point-mirror of the top); teams start side by side.
   // Returns spawns indexed by player index.
-  function battle(def, slots, teams) {
+  //   rnd: a random function (Math.random) to shuffle who starts where, as
+  //   every battle round does; leave it out for a fixed layout (previews).
+  //   Two players always use the arena's matching pair of starts (just which
+  //   side is random); three use a random three of the four spots; teams keep
+  //   together, with a random side each.
+  function shuffle(list, rnd) {
+    const a = list.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(rnd() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  function battle(def, slots, teams, rnd = null) {
     const arena = RR.buildArena(def);
     const out = [];
     if (teams) {
-      const a = slots.filter((i) => teams[i] === 0), b = slots.filter((i) => teams[i] !== 0);
-      const ca = cluster(arena, arena.spawns[0], a.length, [], false, WIDE);
-      const cb = cluster(arena, arena.spawns[1], b.length, ca, true, WIDE);
+      let a = slots.filter((i) => teams[i] === 0), b = slots.filter((i) => teams[i] !== 0);
+      let side = 0; // which of the arena's two starts team A gets
+      if (rnd) {
+        a = shuffle(a, rnd);
+        b = shuffle(b, rnd);
+        side = rnd() < 0.5 ? 0 : 1;
+      }
+      const ca = cluster(arena, arena.spawns[side], a.length, [], side === 1, WIDE);
+      const cb = cluster(arena, arena.spawns[1 - side], b.length, ca, side === 0, WIDE);
       a.forEach((i, k) => { out[i] = ca[k]; });
       b.forEach((i, k) => { out[i] = cb[k]; });
       return out;
@@ -96,7 +116,12 @@ window.RR = window.RR || {};
       arena.spawns[0], arena.spawns[1],
       { x: top.x, y: top.y, angle: Math.PI / 2 }, { x: bot.x, y: bot.y, angle: -Math.PI / 2 },
     ];
-    slots.forEach((i, k) => { out[i] = spots[k % spots.length]; });
+    let order = slots, use = spots;
+    if (rnd) {
+      order = shuffle(slots, rnd);
+      if (slots.length === 3) use = shuffle(spots, rnd).slice(0, 3);
+    }
+    order.forEach((i, k) => { out[i] = use[k % use.length]; });
     return out;
   }
 

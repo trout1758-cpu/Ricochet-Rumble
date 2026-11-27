@@ -117,7 +117,7 @@
     qrWait: null,
     matchWinner: null,
     slots: [0, 1],
-    shown: 1,          // player cards showing in the lobby (add players one at a time)
+    open: [true, false, false, false], // which player cards show in the lobby (players come and go)
     padPrev: {},       // gamepad buttons last frame, for "press to join"
     goShown: false,
     mineBlink: new Map(),
@@ -243,7 +243,8 @@
     game.paused = false;
     game.lobbyCountdown = 0;
     players.forEach((p) => { p.ready = false; });
-    players.forEach((p, i) => { if (p.controller) game.shown = Math.max(game.shown, i + 1); });
+    players.forEach((p, i) => { if (p.controller) game.open[i] = true; });
+    if (!game.open.some(Boolean)) game.open[0] = true;
     show('#screen-title', false);
     show('#screen-lobby', true);
     show('#screen-pause', false);
@@ -422,7 +423,10 @@
     setupSettings();
     $('#btn-add-player').addEventListener('click', (e) => { e.currentTarget.blur(); addPlayer(false); });
     $('#btn-add-cpu').addEventListener('click', (e) => { e.currentTarget.blur(); addPlayer(true); });
-    $$('.card-x').forEach((b) => b.addEventListener('click', (e) => { e.currentTarget.blur(); dropLastPlayer(); }));
+    $$('.card-x').forEach((b) => b.addEventListener('click', (e) => {
+      e.currentTarget.blur();
+      removePlayer(Number(e.currentTarget.closest('.player-card').dataset.player));
+    }));
     $('#btn-help-close').addEventListener('click', () => show('#screen-help', false));
 
     const problem = RR.BLE.problem();
@@ -539,34 +543,41 @@
   }
 
   // ---- players joining one at a time ----------------------------------------------
-  // First empty card, or a new card if there's room. -1 when all four are taken.
+  // Cards can come and go in any order; a removed player's spot is the first
+  // to be filled again, and everyone else keeps their player number.
+  const openCount = () => game.open.filter(Boolean).length;
+
+  // First open card with nobody on it, else the first closed card (opened
+  // now). -1 when all four are taken.
   function freeSlot(grow = true) {
-    for (let i = 0; i < game.shown; i++) {
+    for (let i = 0; i < NP; i++) {
+      if (!game.open[i]) continue;
       const waiting = (game.qrWait && game.qrWait.player === i) || (game.gamepadWait && game.gamepadWait.player === i);
       if (!players[i].controller && !waiting) return i;
     }
-    if (grow && game.shown < NP) {
-      game.shown++;
-      return game.shown - 1;
+    if (grow) {
+      const i = game.open.indexOf(false);
+      if (i >= 0) { game.open[i] = true; return i; }
     }
     return -1;
   }
 
   function addPlayer(cpu) {
-    if (game.shown >= NP) return;
-    game.shown++;
+    const i = game.open.indexOf(false);
+    if (i < 0) return;
+    game.open[i] = true;
     audio.click();
-    if (cpu) chooseController(game.shown - 1, 'cpu');
+    if (cpu) chooseController(i, 'cpu');
     refreshLobby();
   }
 
-  function dropLastPlayer() {
-    if (game.shown <= 1) return;
-    const i = game.shown - 1;
+  // The × on a card: that player leaves. The last card left stays (empty).
+  function removePlayer(i) {
     if (game.qrWait && game.qrWait.player === i) game.qrWait = null;
     if (game.gamepadWait && game.gamepadWait.player === i) game.gamepadWait = null;
     removeController(i, true);
-    game.shown--;
+    players[i].ready = false;
+    if (openCount() > 1) game.open[i] = false;
     audio.click();
     refreshLobby();
   }
@@ -602,7 +613,7 @@
       }
       return;
     }
-    game.shown = Math.max(game.shown, i + 1);
+    game.open[i] = true;
     assignController(i, ctl);
     refreshLobby();
   }
@@ -697,7 +708,9 @@
       let slots = activeSlots();
       if (slots.length < 2) slots = [0, 1];
       const spots = coop ? RR.Campaign.spawnsFor(def) : RR.Spawns.battle(def, slots, teamsOn() ? settings.teams : null);
-      const dots = (coop ? slots.map((i) => ({ sp: spots[i], col: colorOf(i) })) : slots.map((i) => ({ sp: spots[i], col: colorOf(i), ring: teamsOn() ? TEAMS[teamOf(i)].color : null })));
+      // battles shuffle who starts where every round, so just mark the spots
+      const dots = coop ? slots.map((i) => ({ sp: spots[i], col: colorOf(i) }))
+        : slots.map((i) => ({ sp: spots[i], col: { body: '#2a2230' }, ring: '#ffffff' }));
       RR.drawArenaPreview($('#arena-preview'), def, null, dots);
     }
 
@@ -712,9 +725,9 @@
       card.style.setProperty('--tc', TEAMS[teamOf(i)].color);
       card.classList.toggle('teamed', teamsOn());
       const waitingHere = (game.qrWait && game.qrWait.player === i) || (game.gamepadWait && game.gamepadWait.player === i);
-      card.classList.toggle('hidden', i >= game.shown);
-      const x = $('.card-x', card);
-      if (x) x.classList.toggle('hidden', i !== game.shown - 1);
+      card.classList.toggle('hidden', !game.open[i]);
+      // × on every card (on the only card left, only once it has a controller)
+      $('.card-x', card).classList.toggle('hidden', openCount() <= 1 && !p.controller);
       void waitingHere;
       const ctl = p.controller;
       const icon = $('.ctrl-icon', card);
@@ -759,7 +772,7 @@
     if (!ok) {
       const part = players.filter((p) => p.controller);
       if (coop) hint = 'Give at least one player a controller.';
-      else if (part.length < 2) hint = game.shown < 2 ? 'Battles need 2–4 players: add a player or the Computer.' : 'Battles need 2–4 players. Give another player a controller (or the Computer).';
+      else if (part.length < 2) hint = openCount() < 2 ? 'Battles need 2–4 players: add a player or the Computer.' : 'Battles need 2–4 players. Give another player a controller (or the Computer).';
       else if (!part.some((p) => !isCpu(p))) hint = 'At least one human player, please!';
       else hint = 'Put players on both teams.';
     }
@@ -772,7 +785,7 @@
     } else hint = 'Press fire on every controller, or click Start.';
     $('#start-hint').textContent = hint;
     $$('.ctrl-select option[value="cpu"]').forEach((o) => { o.hidden = coop; o.disabled = coop; });
-    $('.add-tile').classList.toggle('hidden', game.shown >= NP);
+    $('.add-tile').classList.toggle('hidden', openCount() >= NP);
     refreshJoin();
     $('#btn-add-cpu').classList.toggle('hidden', coop);
     fitLobby();
@@ -1093,7 +1106,8 @@
     };
     if (def && !game.campaign && !game.survival) {
       o.teams = game.teams;
-      o.spawns = RR.Spawns.battle(def, game.slots, game.teams);
+      // a new random line-up every round
+      o.spawns = RR.Spawns.battle(def, game.slots, game.teams, Math.random);
     }
     return o;
   }
@@ -1982,7 +1996,7 @@
     const coop = settings.mode !== 'duel';
     const card = {
       p: i, name: p.name, color: p.colorIndex,
-      taken: others(i).filter((q) => q.index < game.shown).map((q) => q.colorIndex),
+      taken: others(i).filter((q) => game.open[q.index]).map((q) => q.colorIndex),
       hat: hatOf(i), teams: teamsOn(), team: teamOf(i), ready: p.ready,
       mode: coop ? (settings.mode === 'campaign' ? 'Co-op campaign' : 'Survival') : teamsOn() ? 'Team battle' : 'Free-for-all',
       hint: $('#start-hint').textContent,

@@ -22,9 +22,9 @@ Any player can also use a **Wii Remote + Nunchuk** (classic Wii Play controls), 
 ### Game modes
 
 - **Battle:** 2 to 4 players, first to 3, 5 or 7 rounds.
-  - **Free-for-all:** last tank standing scores. With 3 or 4 players, the extra tanks start at the top and bottom of the arena.
-  - **Teams:** pick **A** or **B** on each player card. Team-mates start side by side and wear a coloured ring (pink for A, blue for B). The last team with a tank left wins the round, and every member scores. A team-mate's mine won't go off when you drive over it, but its blast and stray shells still hurt.
-  - The lobby starts with just Player 1. Add players one at a time with **+ Add player** / **+ Add Computer**, or just press a button on a free gamepad or Wii Remote (one the browser has already been allowed to use) and it joins on the next card. The × on the last card removes that player. Any player can be the **Computer** (a CPU tank that banks shots off walls and lays mines), so you can play 1 vs 3 CPUs, or you and a CPU against two friends.
+  - **Free-for-all:** last tank standing scores. With 3 or 4 players, the extra tanks start at the top and bottom of the arena. Who starts where is shuffled every round (with 2 players, you just swap sides at random).
+  - **Teams:** pick **A** or **B** on each player card. Team-mates start side by side (which side each team gets is random every round) and wear a coloured ring (pink for A, blue for B). The last team with a tank left wins the round, and every member scores. A team-mate's mine won't go off when you drive over it, but its blast and stray shells still hurt.
+  - The lobby starts with just Player 1. Add players one at a time with **+ Add player** / **+ Add Computer**, or just press a button on a free gamepad or Wii Remote (one the browser has already been allowed to use) and it joins on the next card. The × on any card removes that player; everyone else keeps their player number, and the empty spot is the first one filled when someone joins. Any player can be the **Computer** (a CPU tank that banks shots off walls and lays mines), so you can play 1 vs 3 CPUs, or you and a CPU against two friends.
 - **Survival:** endless waves; see below.
 - **Co-op campaign:** one to four players team up against **20 stages** of CPU tanks.
   Clear every enemy tank to move on. You share 3 lives and get an extra life every 5 stages.
