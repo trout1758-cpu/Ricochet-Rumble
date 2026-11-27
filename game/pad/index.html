@@ -66,6 +66,10 @@
     #profile-colors button[aria-checked="true"] { border-color: #fff; box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.35); }
     #profile-colors button:disabled { opacity: 0.2; }
     #settings { z-index: 20; }
+    #notice { z-index: 14; flex-direction: column; gap: 14px; background: #1c1a26; }
+    #notice h2 { margin: 0; font-size: 26px; font-weight: 900; }
+    #notice p { margin: 0; font-size: 16px; opacity: 0.8; max-width: 420px; line-height: 1.4; }
+    #notice button { margin-top: 6px; padding: 12px 26px; border: 0; border-radius: 14px; background: #ffcd45; color: #4a3500; font-size: 18px; font-weight: 900; }
     /* lobby: this player's card */
     #lobby {
       position: fixed; inset: 0; z-index: 12; background: #1c1a26; overflow: auto;
@@ -126,6 +130,12 @@
         <button id="profile-save">Save</button>
       </div>
     </div>
+  </div>
+
+  <div id="notice" class="overlay hidden">
+    <h2 id="notice-title"></h2>
+    <p id="notice-text"></p>
+    <button id="notice-retry">Try again</button>
   </div>
 
   <div id="lobby" class="hidden">

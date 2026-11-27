@@ -428,21 +428,13 @@
     const problem = RR.BLE.problem();
     $('#ble-note').textContent = problem ? 'Android app (Bluetooth) unavailable: ' + problem : '';
 
-    players.forEach((p, i) => {
-      const card = $(`.player-card[data-player="${i}"]`);
-      $('.qr-cancel', card).addEventListener('click', (e) => {
-        e.currentTarget.blur();
-        game.qrWait = null;
-        refreshLobby();
-      });
-      $('.qr-other', card).addEventListener('click', (e) => {
-        e.currentTarget.blur();
-        if (game.qrWait) game.qrWait.urlIndex++;
-        refreshLobby();
-      });
+    $('#join-other').addEventListener('click', (e) => {
+      e.currentTarget.blur();
+      joinUrlIndex++;
+      refreshJoin();
     });
     RR.Wifi.onNewPad = onWifiPad;
-    RR.Wifi.onUrls = () => { if (game.qrWait) refreshLobby(); };
+    RR.Wifi.onUrls = () => refreshJoin();
     RR.Wifi.start();
   }
 
@@ -589,22 +581,69 @@
     el.style.transform = `scale(${k.toFixed(4)})`;
   }
 
-  // A phone opened the Wi-Fi controller page (scanned a player's QR code, or
-  // typed the address). Give it that player's tank if we can.
+  // A phone scanned the lobby's QR code (or typed its address). It takes the
+  // next open spot: the first card with no controller (cards waiting for a
+  // gamepad, or set to anything else, are skipped), or a new card. Only the
+  // lobby takes new players; a phone that scans during a match waits and
+  // joins when the game is back in the lobby.
+  const fullToasted = new Set();
   function onWifiPad(ctl, slot) {
-    let i = /^[0-3]$/.test(slot) ? Number(slot) : game.state === 'lobby' ? freeSlot() : players.findIndex((p) => !p.controller);
-    if (i < 0 && game.qrWait) i = game.qrWait.player;
-    if (i >= 0) game.shown = Math.max(game.shown, i + 1);
-    const current = i >= 0 ? players[i].controller : null;
-    const busy = game.state !== 'lobby' && current && current.connected;
-    const qrForThis = game.qrWait && game.qrWait.player === i;
-    if (i < 0 || busy || (game.state === 'lobby' && slot === '' && current && !qrForThis)) {
-      ctl.reject();
-      toast('A phone tried to join, but all four players already have controllers.', '#ff5a4a');
+    if (game.state !== 'lobby') {
+      ctl.reject(2);
       return;
     }
-    if (game.qrWait && game.qrWait.player === i) game.qrWait = null;
+    // (older QR codes named a player: honour that if the spot is still free)
+    let i = /^[0-3]$/.test(slot) && !players[Number(slot)].controller ? Number(slot) : freeSlot();
+    if (i < 0) {
+      ctl.reject(1);
+      if (!fullToasted.has(ctl.id)) {
+        fullToasted.add(ctl.id);
+        toast('A phone tried to join, but all four spots are taken.', '#ff5a4a');
+      }
+      return;
+    }
+    game.shown = Math.max(game.shown, i + 1);
     assignController(i, ctl);
+    refreshLobby();
+  }
+
+  // ---- the lobby's QR code: one for everyone, the same all session ----------------------
+  let joinUrlIndex = 0;
+  function refreshJoin() {
+    const box = $('#join-box');
+    if (!box) return;
+    const taken = players.filter((p) => p.controller || (game.gamepadWait && game.gamepadWait.player === p.index)).length;
+    const left = NP - taken;
+    const urls = RR.Wifi.urls || [];
+    const qr = $('#join-qr');
+    let title, sub, url = '', link = null;
+    if (left <= 0) {
+      title = 'Lobby full';
+      sub = 'All four spots are taken.';
+    } else if (!RR.Wifi.supported()) {
+      title = 'Phones';
+      sub = 'To let phones join over Wi-Fi, open the game with the Ricochet Rumble app or the start script.';
+    } else if (!RR.Wifi.hubConnected) {
+      title = 'Phones';
+      sub = 'Starting the Wi-Fi link… If this doesn’t go away, restart the game.';
+    } else if (!urls.length) {
+      title = 'Phones';
+      sub = 'Connect this computer to Wi-Fi (or a phone hotspot) so phones can join.';
+    } else {
+      link = urls[joinUrlIndex % urls.length];
+      title = 'Scan to join';
+      sub = `${left} spot${left === 1 ? '' : 's'} left · phones on the same Wi-Fi as this computer`;
+      url = link.replace(/^http:\/\//, '');
+    }
+    box.classList.toggle('full', !link);
+    if (link && qr.dataset.url !== link) {
+      qr.dataset.url = link;
+      drawQr(qr, link);
+    }
+    $('#join-title').textContent = title;
+    $('#join-sub').textContent = sub;
+    $('#join-url').textContent = url;
+    $('#join-other').classList.toggle('hidden', !link || urls.length < 2);
   }
 
   function drawQr(canvas, text) {
@@ -625,32 +664,6 @@
     }
   }
 
-  function refreshQr(i, card) {
-    const panel = $('.qr-panel', card);
-    const waiting = !!(game.qrWait && game.qrWait.player === i);
-    panel.classList.toggle('hidden', !waiting);
-    $('.tank-preview', card).classList.toggle('hidden', waiting);
-    if (!waiting) return;
-    const urls = RR.Wifi.urls;
-    const qrCanvas = $('canvas.qr', panel);
-    const url = $('.qr-url', panel);
-    $('.qr-other', panel).classList.toggle('hidden', urls.length < 2);
-    if (!RR.Wifi.hubConnected) {
-      qrCanvas.classList.add('hidden');
-      url.textContent = 'Starting the Wi-Fi link… If this doesn’t go away, close the game and start it again with the start script.';
-    } else if (!urls.length) {
-      qrCanvas.classList.add('hidden');
-      url.textContent = 'This computer isn’t on a network yet. Connect it to Wi-Fi (or a phone hotspot), then click the button again.';
-    } else {
-      const link = `${urls[game.qrWait.urlIndex % urls.length]}?slot=${i}`;
-      qrCanvas.classList.remove('hidden');
-      if (qrCanvas.dataset.url !== link) {
-        qrCanvas.dataset.url = link;
-        drawQr(qrCanvas, link);
-      }
-      url.textContent = link.replace(/^http:\/\//, '');
-    }
-  }
 
   function refreshLobby() {
     const campaign = settings.mode === 'campaign';
@@ -727,10 +740,10 @@
         name.textContent = 'No controller';
         detail.textContent = 'Pick one below';
       }
-      refreshQr(i, card);
+      const wifiOpt = $('.ctrl-select option[value="wifi"]', card);
+      wifiOpt.hidden = wifiOpt.disabled = !(ctl && ctl.kind === 'wifi');
       const sel = $('.ctrl-select', card);
-      const showing = game.qrWait && game.qrWait.player === i ? 'wifi'
-        : game.gamepadWait && game.gamepadWait.player === i ? (game.gamepadWait.src || 'gamepad')
+      const showing = game.gamepadWait && game.gamepadWait.player === i ? (game.gamepadWait.src || 'gamepad')
           : ctl ? (ctl.kind === 'gamepad' ? ctl.choice || 'gamepad' : ctl.kind) : 'none';
       if (document.activeElement !== sel && !sel.dataset.pending) sel.value = showing;
       const rb = $('.ready-btn', card);
@@ -760,6 +773,7 @@
     $('#start-hint').textContent = hint;
     $$('.ctrl-select option[value="cpu"]').forEach((o) => { o.hidden = coop; o.disabled = coop; });
     $('.add-tile').classList.toggle('hidden', game.shown >= NP);
+    refreshJoin();
     $('#btn-add-cpu').classList.toggle('hidden', coop);
     fitLobby();
   }
@@ -785,13 +799,7 @@
     game.gamepadWait = null;
     game.qrWait = null;
     if (src === 'wifi') {
-      if (!RR.Wifi.supported()) {
-        toast('Wi-Fi phones need the game started with the start script (start-game.bat / start-game.sh).', '#ff5a4a', 6000);
-        refreshLobby();
-        return;
-      }
-      game.qrWait = { player: i, urlIndex: 0 };
-      RR.Wifi.refreshUrls();
+      toast('Phones join by scanning the QR code in the lobby.', colorOf(i).body);
       refreshLobby();
     } else if (src === 'cpu') {
       assignController(i, cpuController());
@@ -942,7 +950,10 @@
     refreshLobby();
   }
 
+  let joinTimer = 0;
   function updateLobby(dt, inputs) {
+    joinTimer -= dt;
+    if (joinTimer <= 0) { joinTimer = 1; refreshJoin(); }
     const fresh = freePadPresses();
     if (!game.gamepadWait) {
       for (const pad of fresh) joinWith(() => new RR.GamepadController(pad, padChoice(pad)), 'gamepad');

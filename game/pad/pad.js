@@ -46,7 +46,7 @@
   }
 
   // ---- connection to the game -------------------------------------------------------
-  // conn: 'connecting' | 'connected' | 'lost' | 'kicked' | 'full'
+  // conn: 'connecting' | 'connected' | 'lost' | 'kicked' | 'full' | 'busy'
   let conn = 'connecting';
   let ws = null;
   let lastMsgAt = 0;
@@ -57,6 +57,7 @@
   let game = null;
   let lobbyInfo = null; // { my, other, name } from the game
   let card = null;      // this player's lobby card (newer games send it)
+  let waitingForLobby = false; // turned away during a match; retrying until the lobby takes us
 
   const padId = (() => {
     try {
@@ -90,7 +91,7 @@
     sock.onclose = () => {
       if (ws !== sock) return;
       ws = null;
-      if (conn === 'kicked' || conn === 'full') return;
+      if (conn === 'kicked' || conn === 'full' || conn === 'busy') return;
       if (conn === 'connected') conn = 'lost';
       playerIndex = -1;
       game = null;
@@ -109,6 +110,7 @@
       case P.MSG_ASSIGN:
         if (b.length >= 5) {
           playerIndex = b[1] === 255 ? -1 : b[1];
+          waitingForLobby = false;
           playerColor = `rgb(${b[2]},${b[3]},${b[4]})`;
           vibrate(120);
         }
@@ -131,7 +133,13 @@
         renderCard();
         break;
       case MSG_KICK:
-        conn = b[1] === 1 ? 'full' : 'kicked';
+        conn = b[1] === 1 ? 'full' : b[1] === 2 ? 'busy' : 'kicked';
+        // a match is on: try again every few seconds, so this phone joins as
+        // soon as the game is back in the lobby
+        if (conn === 'busy') {
+          waitingForLobby = true;
+          setTimeout(() => { if (conn === 'busy') retry(); }, 4000);
+        }
         playerIndex = -1;
         game = null;
         if (ws) ws.close();
@@ -172,6 +180,7 @@
     retryDelay = 800;
     if (!ws) connect();
     dirty = true;
+    if (typeof showLobby === 'function') showLobby();
   }
 
   // ---- geometry -----------------------------------------------------------------------
@@ -228,7 +237,7 @@
 
   const hit = (r, x, y, slop = 10 * dp) => x >= r.left - slop && x <= r.right + slop && y >= r.top - slop && y <= r.bottom + slop;
   const isMoveSide = (x) => (prefs.swap ? x >= W / 2 : x < W / 2);
-  const needsRetry = () => conn === 'kicked' || conn === 'full';
+  const needsRetry = () => conn === 'kicked' || conn === 'full' || conn === 'busy';
   const canEditProfile = () => conn === 'connected' && playerIndex >= 0 && lobbyInfo && game && game.state === P.STATE.LOBBY;
 
   function pointerDown(id, x, y) {
@@ -366,7 +375,20 @@
   function showLobby() {
     const on = !!(card && conn === 'connected' && playerIndex >= 0 && game && game.state === P.STATE.LOBBY);
     $('lobby').classList.toggle('hidden', !on);
+    // lobby full / match on: say so, big and clear (any orientation)
+    const state = conn === 'full' ? 'full' : conn === 'busy' || (waitingForLobby && conn !== 'kicked') ? 'busy' : null;
+    const msg = {
+      full: ['The lobby is full', 'All four spots are taken. When someone leaves, tap Try again.', true],
+      busy: ['A match is being played', 'You\'ll join automatically as soon as the game is back in the lobby.', false],
+    }[state];
+    $('notice').classList.toggle('hidden', !msg);
+    if (msg) {
+      $('notice-title').textContent = msg[0];
+      $('notice-text').textContent = msg[1];
+      $('notice-retry').classList.toggle('hidden', !msg[2]);
+    }
   }
+  $('notice-retry').addEventListener('click', () => { retry(); showLobby(); });
 
   function renderCard() {
     if (!card) return;
@@ -588,7 +610,8 @@
       } else { dot = 'rgb(92,196,97)'; label = 'CONNECTED'; }
     } else if (conn === 'connecting') { dot = 'rgb(255,205,69)'; label = 'CONNECTING…'; }
     else if (conn === 'lost') { dot = 'rgb(255,205,69)'; label = 'RECONNECTING…'; }
-    else if (conn === 'full') { dot = 'rgb(255,90,74)'; label = 'GAME IS FULL'; }
+    else if (conn === 'full') { dot = 'rgb(255,90,74)'; label = 'LOBBY FULL'; }
+    else if (conn === 'busy') { dot = 'rgb(255,205,69)'; label = 'WAITING FOR THE LOBBY'; }
     else { dot = 'rgb(255,90,74)'; label = 'DISCONNECTED'; }
     font(900, 15 * dp);
     ctx.textAlign = 'left';
@@ -684,7 +707,8 @@
       connecting: ['Connecting to the game…', 'Your phone must be on the same Wi-Fi as the computer'],
       lost: ['Lost connection to the game', 'Reconnecting automatically…'],
       kicked: ['This controller was removed from the game', 'Tap here to join again'],
-      full: ['Both players already have controllers', 'Tap here to try again'],
+      full: ['The lobby is full: all four spots are taken', 'Tap here to try again'],
+      busy: ['A match is being played right now', 'You\'ll join as soon as it\'s back in the lobby'],
     }[conn];
     if (!lines) return;
     font(500, 15 * dp);

@@ -153,8 +153,9 @@ window.RR = window.RR || {};
       if (this.assignMsg) this.send(this.assignMsg);
     }
 
-    reject() {
-      this.send(new Uint8Array([MSG_KICK, 1]));
+    // 1 = all four spots are taken · 2 = a match is on (join from the lobby)
+    reject(reason = 1) {
+      this.send(new Uint8Array([MSG_KICK, reason]));
       this.disposed = true;
       Wifi.pads.delete(this.id);
     }

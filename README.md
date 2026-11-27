@@ -155,10 +155,14 @@ If the Wi-Fi server can't start for any reason, the script says so and starts in
 ### Over Wi-Fi (any phone)
 
 1. Make sure the phone is on the **same Wi-Fi network** as the computer.
-2. In the game, click **Play**, then **Phone · scan QR code** on a player card.
-3. Point the phone's camera at the QR code and open the link.
-   The controller opens in the phone's browser and the pill turns into **PLAYER 1** (or 2).
-4. Turn the phone sideways.
+2. In the game, click **Play**. The lobby shows one QR code (**Scan to join**, next to Start) for everyone, the same all session.
+3. Everyone points their phone's camera at it and opens the link.
+   Phones join in the order they scan, each on the next open spot: the first player card with no controller, or a new card, up to four players.
+   Spots already set to a Wii Remote, gamepad, keyboard or the Computer are skipped, so you can reserve them.
+   Each phone then shows its own player card: pick a colour, hat and team, and tap **Ready**.
+4. Once all four spots are taken the lobby shows **Lobby full**, and a phone that scans then is told the lobby is full (tap **Try again** after someone leaves).
+   A phone that scans during a match waits and joins by itself when the game is back in the lobby.
+5. When the match starts, turn the phone sideways: it's now the controller.
 
 On Android, the first tap makes it full screen.
 On iPhone, Safari can't hide its bars for a web page; for a full-screen controller, tap **Share → Add to Home Screen** and open it from there.
