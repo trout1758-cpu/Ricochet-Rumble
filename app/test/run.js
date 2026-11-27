@@ -137,6 +137,9 @@ function makeZip(files) {
     // a newer app install (newer bundled game) wins over an older download
     fs.writeFileSync(path.join(bundled, 'build.json'), JSON.stringify({ sha: 'ccc', date: '2026-11-25T00:00:00Z' }));
     assert(u.current().sha === 'ccc', 'newer bundled game');
+    // 03:00 at +05:00 is 22:00 the day before in UTC: older than the download, though it reads later as text
+    fs.writeFileSync(path.join(bundled, 'build.json'), JSON.stringify({ sha: 'ddd', date: '2026-11-20T03:00:00+05:00' }));
+    assert(u.current().sha === 'bbb', 'dates compared as times, not text');
     u.reset();
     assert(u.current().source === 'bundled');
     fs.rmSync(tmp, { recursive: true, force: true });

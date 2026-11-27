@@ -99,7 +99,7 @@ The app downloads the newest game from GitHub and restarts the game in a second;
 It also checks quietly a few seconds after it starts and tells you when there's an update.
 The app itself (the .exe) only needs reinstalling when Settings says a new *app* version is out; download it from the Releases page the same way.
 
-The Releases page is filled in by GitHub automatically: the **Build Windows app** workflow (`.github/workflows/app.yml`) builds the installer on a Windows machine whenever `app/` changes on `main`, or when you run it by hand from the **Actions** tab.
+The Releases page is filled in by GitHub automatically: the **Build Windows app** workflow (`.github/workflows/app.yml`) rebuilds the installer on a Windows machine whenever the game (`game/`) or the app (`app/`) changes on `main`, so a fresh download always includes the newest game. You can also run it by hand from the **Actions** tab.
 To work on the app itself: `cd app`, `npm install`, `npm start` (runs it from the repository's `game/` folder), `npm test`.
 
 ## What you need

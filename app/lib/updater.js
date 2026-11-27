@@ -14,6 +14,8 @@ const zlib = require('zlib');
 const REPO = 'trout1758-cpu/Ricochet-Rumble';
 const API = `https://api.github.com/repos/${REPO}`;
 const UA = { 'User-Agent': 'RicochetRumble-App', Accept: 'application/vnd.github+json' };
+// dates come as "…Z" from GitHub and "…+01:00" from git: compare them as times
+const when = (iso) => Date.parse(iso || '') || 0;
 
 // ---- a small zip reader (stored and deflated entries, as GitHub makes them) -------
 function unzip(buf) {
@@ -78,7 +80,7 @@ class Updater {
   current() {
     const b = this.bundled();
     const d = this.downloaded();
-    if (d && (!b.date || d.date >= b.date)) return d;
+    if (d && when(d.date) >= when(b.date)) return d;
     return b;
   }
 
@@ -94,7 +96,7 @@ class Updater {
     if (!Array.isArray(commits) || !commits.length) throw new Error('no game versions found');
     const c = commits[0];
     const latest = { sha: c.sha, date: c.commit.committer.date, message: String(c.commit.message || '').split('\n')[0] };
-    const available = latest.sha !== cur.sha && (!cur.date || latest.date > cur.date);
+    const available = latest.sha !== cur.sha && when(latest.date) > when(cur.date);
     // a newer app (the .exe itself)?
     let app = null;
     try {

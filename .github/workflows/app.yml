@@ -1,7 +1,9 @@
 # Builds the Ricochet Rumble Windows app and publishes it on the Releases page.
-# Runs when the app shell (app/) changes on main, or by hand from the Actions tab
-# ("Build Windows app" > "Run workflow"). Game-only changes don't need a new
-# app: the app updates the game itself from Settings > Check for updates.
+# Runs whenever the game (game/) or the app shell (app/) changes on main, so the
+# installer on the Releases page always contains the newest game. It can also
+# be run by hand from the Actions tab ("Build Windows app" > "Run workflow").
+# The release for the current app version (tag app-v<version>) is updated in
+# place: its tag moves to the commit that was built and its files are replaced.
 name: Build Windows app
 
 on:
@@ -9,11 +11,17 @@ on:
   push:
     branches: [main]
     paths:
+      - 'game/**'
       - 'app/**'
       - '.github/workflows/app.yml'
 
 permissions:
   contents: write
+
+# several pushes in a row: only the newest one needs building
+concurrency:
+  group: windows-app-release
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -30,12 +38,16 @@ jobs:
           cache-dependency-path: app/package-lock.json
 
       - name: Stamp the bundled game's version
+        id: game
         shell: bash
         run: |
           sha=$(git log -1 --format=%H -- game)
-          date=$(git log -1 --format=%cI -- game)
+          date=$(TZ=UTC git log -1 --date=iso-strict-local --format=%cd -- game)
           printf '{"sha":"%s","date":"%s"}\n' "$sha" "$date" > game/build.json
           cat game/build.json
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "short=${sha:0:7}" >> "$GITHUB_OUTPUT"
+          echo "date=$(TZ=UTC git log -1 --date=format-local:'%b %d, %Y %H:%M UTC' --format=%cd -- game)" >> "$GITHUB_OUTPUT"
 
       - name: Install
         working-directory: app
@@ -54,20 +66,31 @@ jobs:
         shell: bash
         run: echo "version=$(node -p "require('./app/package.json').version")" >> "$GITHUB_OUTPUT"
 
+      - name: Point the release tag at this build
+        shell: bash
+        run: |
+          git tag -f "app-v${{ steps.v.outputs.version }}" "$GITHUB_SHA"
+          git push -f origin "refs/tags/app-v${{ steps.v.outputs.version }}"
+
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: app-v${{ steps.v.outputs.version }}
+          target_commitish: ${{ github.sha }}
           name: Ricochet Rumble app ${{ steps.v.outputs.version }}
           make_latest: true
+          overwrite_files: true
           body: |
             **Download `RicochetRumble-Setup-${{ steps.v.outputs.version }}.exe`** and run it to install Ricochet Rumble on Windows
             (or use the Portable exe, which runs without installing).
 
+            This download includes the newest game, from ${{ steps.game.outputs.date }} (`${{ steps.game.outputs.short }}`).
+            It's rebuilt automatically every time the game changes.
+
             Windows may say it "protected your PC" because the app isn't signed: click **More info** > **Run anyway**.
             When Windows asks whether to allow network access, click **Allow** so Wi-Fi phones can connect.
 
-            After that, update the game from inside the app: **⚙ Settings > Check for updates**.
+            Already installed? Update the game from inside the app: **⚙ Settings > Check for updates**.
           files: |
             app/dist/RicochetRumble-Setup-*.exe
             app/dist/RicochetRumble-Portable-*.exe
