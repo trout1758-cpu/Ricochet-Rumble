@@ -500,6 +500,29 @@ console.log('Campaign, CPU tanks, power-ups');
     if (w.shellsLeft(0) !== w.ammo.max - 1) throw new Error('should count as one shell');
   });
 
+  test('power-ups: all three triple-shot shells keep flying and fan out', () => {
+    const w = makeWorld(EMPTY);
+    const t = w.tanks[0];
+    t.x = 4.5; t.y = 6.5;
+    w.tanks[1].x = 20.5; w.tanks[1].y = 1.5; // out of the way
+    t.turret = t.turretTarget = 0;
+    w.applyPowerup(t, 'spread');
+    w.tryFire(t, RR.NO_INPUT);
+    const ev = step(w, 0.6);
+    if (ev.some((e) => e.type === 'shellClash')) throw new Error('the shells knocked each other out');
+    if (w.bullets.length !== 3) throw new Error('shells still flying: ' + w.bullets.length);
+    const ys = w.bullets.map((b) => b.y).sort((a, b) => a - b);
+    if (!(ys[2] - ys[0] > 1)) throw new Error('shells should spread apart: ' + ys.join());
+  });
+  test('power-ups: shells from different shots still knock each other out', () => {
+    const w = makeWorld(EMPTY);
+    w.tanks[0].x = 4.5; w.tanks[0].y = 6.5; w.tanks[0].turret = w.tanks[0].turretTarget = 0;
+    w.tanks[1].x = 17.5; w.tanks[1].y = 6.5; w.tanks[1].turret = w.tanks[1].turretTarget = Math.PI;
+    w.tryFire(w.tanks[0], RR.NO_INPUT);
+    w.tryFire(w.tanks[1], RR.NO_INPUT);
+    const ev = step(w, 2);
+    if (!ev.some((e) => e.type === 'shellClash')) throw new Error('head-on shells should clash');
+  });
   test('power-ups: drive over one to pick it up; in a duel they come in mirrored pairs', () => {
     const w = new RR.World(def, { colors, powerups: true });
     w.frozen = false;

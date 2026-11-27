@@ -325,7 +325,7 @@ The ammo type and mines on/off are chosen in the lobby.
 
 ### Arenas
 
-There are 34 arenas across 15 themes.
+There are 54 arenas across 15 themes.
 Every arena is symmetric, so both sides are equal.
 Most are mirrored left-to-right; the ones marked ↻ are rotated instead, so the players start in opposite corners.
 
@@ -365,6 +365,26 @@ Most are mirrored left-to-right; the ones marked ↻ are rotated instead, so the
 | Old Manor ↻ | Haunted | Dark corridors and rooms |
 | Rooftops | Sky | Gaps between roofs; shells fly over them |
 | Cloud Bridges | Sky | Narrow bridges over the sky |
+| Pillar Hall | Workshop | A forest of single pillars for bank shots |
+| Sawmill | Workshop | Diagonal saw-tooth walls and lumber crates |
+| Sandcastle | Sandbox | A crate castle in the middle with doors on each side |
+| Dune Sea ↻ | Sandbox | Drifting crate dunes and a wall across the centre |
+| Ice Rink | Frost | Wide-open ice with a few blocks to slide around |
+| Glacier ↻ | Frost | Ice shelves and crevasses, corner to corner |
+| Greenhouse | Garden | Rows of planters top and bottom (they grow back) |
+| Topiary ↻ | Garden | Hedge shapes to hide behind |
+| Pillow Fort | Playroom | Two long walls make a corridor down the middle |
+| Block Party ↻ | Playroom | Toy blocks scattered for crazy ricochets |
+| Drafting Table | Blueprint | Long ruler walls along the top, bottom and sides |
+| Cutting Board | Kitchen | Knife walls and boxes of groceries |
+| Caldera | Volcano | A lava ring around an island in the middle |
+| Lagoon | Beach | Tide pools and a few crates on the sand |
+| Asteroid Belt | Space | Asteroids everywhere and four black holes |
+| Packing Plant | Factory | Belts pull you to the middle on top and away below |
+| Neon Maze | Arcade | Maze corners with teleporters in every corner |
+| Drawbridge | Castle | A wall in front of each spawn with three gates |
+| Crypt | Haunted | Rows of tombs in the dark |
+| Sky Islands | Sky | Floating islands with gaps to drive around |
 
 Choose **Rotation** to play them in this order, **Random**, or a single arena.
 To make your own, add an entry to [`game/js/arenas.js`](game/js/arenas.js).

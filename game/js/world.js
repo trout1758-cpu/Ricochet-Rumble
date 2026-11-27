@@ -613,13 +613,16 @@ window.RR = window.RR || {};
       const y = t.y + sy * C.BARREL_LEN;
       const speed = t.gun.speed;
       const angles = t.spread > 0 ? [t.turret, t.turret - C.SPREAD_ANGLE, t.turret + C.SPREAD_ANGLE] : [t.turret];
+      // shells from one trigger pull leave the barrel almost touching: they
+      // share a volley number so they don't knock each other out
+      const volley = this.nextId;
       for (const a of angles) {
         const ox = Math.cos(a), oy = Math.sin(a);
         // side shells of a triple shot start a touch further out, and only if clear
         if (a !== t.turret && this.circleHits(t.x + ox * C.BARREL_LEN, t.y + oy * C.BARREL_LEN, C.BULLET_RADIUS, World.blocksShell)) continue;
         this.bullets.push({
           id: this.nextId++, owner: t.index, x: t.x + ox * C.BARREL_LEN, y: t.y + oy * C.BARREL_LEN, vx: ox * speed, vy: oy * speed, speed, bounces: 0,
-          maxBounces: t.shotBounces(), bent: 0, age: 0, dead: false, extra: a !== t.turret,
+          maxBounces: t.shotBounces(), bent: 0, age: 0, dead: false, extra: a !== t.turret, volley,
         });
       }
       this.emit({ type: 'fire', player: t.index, x, y, angle: t.turret });
@@ -774,7 +777,7 @@ window.RR = window.RR || {};
       for (let i = 0; i < live.length; i++) {
         for (let j = i + 1; j < live.length; j++) {
           const a = live[i], b = live[j];
-          if (a.dead || b.dead) continue;
+          if (a.dead || b.dead || (a.volley != null && a.volley === b.volley)) continue;
           const dx = a.x - b.x, dy = a.y - b.y;
           if (dx * dx + dy * dy < (br * 2) * (br * 2)) {
             this.killBullet(a, 'shell');
