@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="game_background">#1C1A22</color>
+    <color name="launcher_background">#FFCD45</color>
+
+    <style name="Theme.RicochetRumble" parent="android:Theme.Material.NoActionBar.Fullscreen">
+        <item name="android:windowBackground">@color/game_background</item>
+        <item name="android:statusBarColor">@color/game_background</item>
+        <item name="android:navigationBarColor">@color/game_background</item>
+        <item name="android:colorAccent">#FFCD45</item>
+    </style>
+</resources>

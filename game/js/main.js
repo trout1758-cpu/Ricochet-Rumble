@@ -430,7 +430,8 @@
     $('#btn-help-close').addEventListener('click', () => show('#screen-help', false));
 
     const problem = RR.BLE.problem();
-    $('#ble-note').textContent = problem ? 'Android app (Bluetooth) unavailable: ' + problem : '';
+    const onTablet = !!(window.rrApp && window.rrApp.platform === 'android');
+    $('#ble-note').textContent = problem && !onTablet ? 'Android app (Bluetooth) unavailable: ' + problem : '';
 
     $('#join-other').addEventListener('click', (e) => {
       e.currentTarget.blur();
@@ -462,6 +463,7 @@
     $$('.browser-only').forEach((el) => el.classList.toggle('hidden', !!appShell));
     if (!appShell) return;
     const info = await appShell.info();
+    if (info.platform === 'android') $('#btn-fullscreen').textContent = 'Full screen on / off';
     const g = info.game;
     $('#app-version').textContent = `App ${info.app} · game from ${fmtDate(g.date)}${g.sha ? ' (' + g.sha.slice(0, 7) + ')' : ''}${g.source === 'downloaded' ? ' · updated' : ''}`;
   }
@@ -755,6 +757,9 @@
       }
       const wifiOpt = $('.ctrl-select option[value="wifi"]', card);
       wifiOpt.hidden = wifiOpt.disabled = !(ctl && ctl.kind === 'wifi');
+      const noHid = !('hid' in navigator), noBt = !('bluetooth' in navigator) && !!(window.rrApp && window.rrApp.platform === 'android');
+      $('.ctrl-select option[value="wiimote"]', card).hidden = noHid && !(ctl && ctl.kind === 'wiimote');
+      $('.ctrl-select option[value="phone"]', card).hidden = noBt && !(ctl && ctl.kind === 'phone');
       const sel = $('.ctrl-select', card);
       const showing = game.gamepadWait && game.gamepadWait.player === i ? (game.gamepadWait.src || 'gamepad')
           : ctl ? (ctl.kind === 'gamepad' ? ctl.choice || 'gamepad' : ctl.kind) : 'none';

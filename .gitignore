@@ -1,3 +1,7 @@
 __pycache__/
 *.pyc
 game/build.json
+tablet-android/.gradle/
+tablet-android/build/
+tablet-android/app/build/
+tablet-android/local.properties

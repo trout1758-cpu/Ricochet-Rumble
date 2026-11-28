@@ -14,6 +14,7 @@ The project has two parts:
 | --- | --- | --- |
 | **The game** | Runs in Chrome or Edge on your computer. | [`game/`](game) |
 | **Windows app** | The game as its own app (no browser), with one-click updates. | [`app/`](app) |
+| **Android tablet app** | The same game with an Android tablet as the big screen. | [`tablet-android/`](tablet-android) |
 | **Wi-Fi controller** | A web page the computer serves to phones on the same network. Works on iPhones and Android phones with nothing to install. | [`game/pad/`](game/pad) |
 | **Ricochet Pad** | Android app that connects over Bluetooth instead, for when there's no usable Wi-Fi. | [`controller-android/`](controller-android) |
 
@@ -101,6 +102,25 @@ The app itself (the .exe) only needs reinstalling when Settings says a new *app*
 
 The Releases page is filled in by GitHub automatically: the **Build Windows app** workflow (`.github/workflows/app.yml`) rebuilds the installer on a Windows machine whenever the game (`game/`) or the app (`app/`) changes on `main`, so a fresh download always includes the newest game. You can also run it by hand from the **Actions** tab.
 To work on the app itself: `cd app`, `npm install`, `npm start` (runs it from the repository's `game/` folder), `npm test`.
+
+## The Android tablet app
+
+An Android tablet (or an Android TV box) can be the big screen instead of a computer.
+Everything works the same way: the lobby shows the **Scan to join** QR code, phones join over Wi-Fi, and **⚙ Settings → Check for updates** updates the game.
+
+1. On the tablet, open **https://github.com/trout1758-cpu/Ricochet-Rumble/releases/download/tablet-latest/RicochetRumble-Tablet.apk** in Chrome.
+   GitHub rebuilds it whenever the game changes, so the link always gets the newest version.
+2. Open the downloaded file. The first time, Android asks you to allow Chrome to install apps; turn that on.
+   If Play Protect warns about an unknown app, tap **More details → Install anyway**.
+3. Open **Ricochet Rumble**. Put the tablet and the phones on the **same Wi-Fi** (or turn on the tablet's hotspot and join it with the phones).
+
+On the tablet, players can use **phones over Wi-Fi**, **gamepads** (Xbox, PlayStation or Switch controllers paired with the tablet over Bluetooth, or plugged in with USB) and a Bluetooth **keyboard**.
+**Wii Remotes and the Android Bluetooth controller app don't work on the tablet**, because Android's built-in browser engine can't talk to them (no WebHID or Web Bluetooth); use those with the Windows app.
+Tap the screen to use the menus, or drive them with a controller as usual.
+The tablet's **Back** button works like **Esc** (closes menus, pauses a match); on the title screen it leaves the app.
+
+To update the app itself (rarely needed; game updates come through Settings), open the same link and install over the old version. Your settings, names and hats are kept.
+The tablet app is signed with the same development key as the Ricochet Pad controller app, which is what lets updates install over each other.
 
 ## What you need
 
@@ -460,6 +480,12 @@ app/                       Windows app (Electron): window, Wi-Fi server, device 
   lib/updater.js           "Check for updates": downloads the newest game/ from GitHub
   test/run.js              Tests for the server, relay and updater (npm test)
 .github/workflows/app.yml  Builds the Windows installer and publishes it on Releases
+tablet-android/            Android tablet app: full-screen WebView, local server, updates
+  app/src/main/java/…/GameServer.java  Local server + phone relay (same as launcher/, in Java)
+  app/src/main/java/…/Updater.java     "Check for updates": downloads the newest game/ from GitHub
+  app/src/main/assets/rr-android/bridge.js  window.rrApp for the game's Settings screen
+  test/run.sh              Tests for the server, relay and updater on a normal JVM
+.github/workflows/android-tablet.yml  Builds the tablet APK and publishes it (tablet-latest)
 controller-android/        Ricochet Pad (Kotlin, no external libraries)
 launcher/server.py         Local server for macOS / Linux (game, Wi-Fi controller, relay)
 launcher/RicochetServer.cs Same server for Windows, compiled by start-game.ps1
