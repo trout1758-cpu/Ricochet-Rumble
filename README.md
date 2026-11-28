@@ -1,6 +1,6 @@
 # Ricochet Rumble
 
-A toy-tank game for the big screen (2–4 player battles, free-for-all or in teams, and a co-op campaign against CPU tanks), with **phones as controllers**: any phone over Wi-Fi by scanning a QR code, or Android phones over Bluetooth with the Ricochet Pad app.
+A toy-tank game for the big screen (2–4 player battles, free-for-all or in teams, and a co-op campaign against CPU tanks), with **phones as controllers**: any phone joins over Wi-Fi by scanning the QR code in the lobby.
 
 ![Ricochet Rumble gameplay](docs/screenshot.jpg)
 
@@ -16,9 +16,9 @@ The project has two parts:
 | **Windows app** | The game as its own app (no browser), with one-click updates. | [`app/`](app) |
 | **Android tablet app** | The same game with an Android tablet as the big screen. | [`tablet-android/`](tablet-android) |
 | **Wi-Fi controller** | A web page the computer serves to phones on the same network. Works on iPhones and Android phones with nothing to install. | [`game/pad/`](game/pad) |
-| **Ricochet Pad** | Android app that connects over Bluetooth instead, for when there's no usable Wi-Fi. | [`controller-android/`](controller-android) |
+| **Ricochet Pad** (retired) | The old Android Bluetooth controller app. It's no longer built or offered in the game (phones join over Wi-Fi instead); the code stays here. | [`controller-android/`](controller-android) |
 
-Any player can also use a **Wii Remote + Nunchuk** (classic Wii Play controls), an **Xbox, PlayStation or Nintendo Switch controller** (USB or Bluetooth), another gamepad, a keyboard and mouse, or the arrow keys.
+Any player can also use a **controller**: an Xbox, PlayStation or Nintendo Switch controller, Joy-Cons, another gamepad, or a **Wii Remote + Nunchuk** (classic Wii Play controls). Or a keyboard and mouse, or the arrow keys.
 
 ### Game modes
 
@@ -93,7 +93,7 @@ Instead of the browser and the start script, you can install Ricochet Rumble as 
 3. The first time it starts, Windows asks whether to allow network access: click **Allow**, so Wi-Fi phones can connect.
 
 The app opens the game full screen (**F11** switches full screen on and off) and serves the Wi-Fi phone controller itself.
-It also allows Wii Remotes / the DolphinBar and the Android Bluetooth app without the browser's device pickers.
+It also allows Wii Remotes / the DolphinBar without the browser's device picker.
 
 **Updating:** open **⚙ Settings** (on the title screen, or the ⚙ next to *How to play* in the lobby) and click **Check for updates**, then **Update now**.
 The app downloads the newest game from GitHub and restarts the game in a second; your settings, names and hats stay.
@@ -115,7 +115,7 @@ Everything works the same way: the lobby shows the **Scan to join** QR code, pho
 3. Open **Ricochet Rumble**. Put the tablet and the phones on the **same Wi-Fi** (or turn on the tablet's hotspot and join it with the phones).
 
 On the tablet, players can use **phones over Wi-Fi**, **gamepads** (Xbox, PlayStation or Switch controllers paired with the tablet over Bluetooth, or plugged in with USB) and a Bluetooth **keyboard**.
-**Wii Remotes and the Android Bluetooth controller app don't work on the tablet**, because Android's built-in browser engine can't talk to them (no WebHID or Web Bluetooth); use those with the Windows app.
+**Wii Remotes don't work on the tablet**, because Android's built-in browser engine can't talk to them (no WebHID); use them with the Windows app.
 Tap the screen to use the menus, or drive them with a controller as usual.
 The tablet's **Back** button works like **Esc** (closes menus, pauses a match); on the title screen it leaves the app.
 
@@ -125,34 +125,9 @@ The tablet app is signed with the same development key as the Ricochet Pad contr
 ## What you need
 
 - **A computer** running **Google Chrome or Microsoft Edge** (Windows 10/11, macOS or Linux).
-- **One or two phones**, connected one of two ways:
-  - **Wi-Fi (any phone):** the phones and the computer must be on the same Wi-Fi network. It doesn't need internet access. Nothing to install.
-  - **Bluetooth (Android only):** the phone needs the Ricochet Pad app (Android 8.0 or newer), and the computer needs Bluetooth. Linux needs one browser flag (see [Troubleshooting](#troubleshooting)).
+- **Up to four phones** (any phone, nothing to install) on the same Wi-Fi network as the computer. It doesn't need internet access. Or controllers, a keyboard, or Computer players.
 
-## 1. (Bluetooth only) Install the Android app on each phone
-
-Skip this if everyone is joining over Wi-Fi.
-
-**Option A: download it on the phone (easiest).**
-
-1. On the phone, open Chrome and sign in at [github.com](https://github.com). The repository is private, so the link only works when you're signed in.
-2. Open **https://github.com/trout1758-cpu/Wii-Tanks/releases/download/controller-latest/RicochetPad.apk**.
-   GitHub rebuilds this file every time the app changes, so the same link always gets the newest version.
-3. Open the downloaded file.
-   The first time, Android asks you to allow Chrome to install apps; turn that on.
-   If Play Protect warns about an unknown app, tap **More details → Install anyway**.
-
-To update later, open the same link again and install over the old version; your settings are kept.
-Every build is signed with the same development key (`controller-android/app/ricochetpad-dev.keystore`), which is what lets updates install over each other.
-
-**Option B: build it yourself.**
-Open the `controller-android` folder in Android Studio and press **Run** with your phone plugged in (USB debugging on).
-From the command line, run `./gradlew assembleRelease`; the APK lands in `app/build/outputs/apk/release/`.
-
-The first time the app opens, it asks for the **Nearby devices** (Bluetooth) permission.
-Allow it.
-
-## 2. Start the game on the computer
+## 1. Start the game on the computer
 
 | System | How |
 | --- | --- |
@@ -170,7 +145,7 @@ If the Wi-Fi server can't start for any reason, the script says so and starts in
 > Why not just open `index.html`? Wi-Fi phones need the local server, and browsers only allow Bluetooth on secure pages: `http://localhost` counts as one, but a local file doesn't.
 > Keyboard and gamepad play also work if you open the file directly.
 
-## 3. Connect the phones
+## 2. Connect the phones
 
 ### Over Wi-Fi (any phone)
 
@@ -188,26 +163,9 @@ On Android, the first tap makes it full screen.
 On iPhone, Safari can't hide its bars for a web page; for a full-screen controller, tap **Share → Add to Home Screen** and open it from there.
 If the phone drops off the Wi-Fi, the game pauses and the phone reconnects to the same tank by itself when the network comes back.
 
-### Over Bluetooth (Android app)
-
-1. Open **Ricochet Pad** on the phone.
-   The top-left pill says **WAITING FOR GAME**, and the screen shows the name to look for (your phone's Bluetooth name).
-2. In the game, click **Play**, then click **Android app** on the Player 1 card.
-3. Chrome opens a Bluetooth list.
-   Pick your phone and click **Pair** / **Connect**.
-4. The phone's pill turns into **PLAYER 1** in that tank's colour, and it buzzes.
-5. Repeat on the other player cards (up to 4 players) with more phones, or pick another controller type.
-6. Press **fire** on both controllers to ready up (tap the right half of the phone screen), or click **Start match**.
-
-Try the sticks in the lobby: the tank picture on your card follows your phone, so you can check it works before the match starts.
-
----
-
 ## Controls
 
-### Phone (Wi-Fi controller or Ricochet Pad)
-
-Both look and work the same.
+### Phone (Wi-Fi controller)
 
 | Control | Action |
 | --- | --- |
@@ -235,7 +193,7 @@ It also shows the score, your remaining shells and mines, and the game state.
 | Switch Pro / Joy-Con pair | left stick or D-pad | right stick | ZR / R / B | ZL / L / A | + |
 | Single Joy-Con (sideways) | stick | follows the way you drive | SR / face buttons | SL | + / − |
 
-To use a controller, pick **Xbox controller**, **PlayStation controller**, **Nintendo Switch controller** or **Other gamepad** in a player card's **Controller** menu, then press any button on it. Connect it first, either over USB or by pairing it in your computer's Bluetooth settings:
+To use a controller, pick **Controller** in a player card's menu, then press any button on the controller you want: Xbox, PlayStation, Switch Pro, Joy-Cons (a pair, or one held sideways), another gamepad, or a Wii Remote. Or just press a button on a free controller and it joins on the next open card. The game works out which kind it is and shows its own button names. Connect it first, either over USB or by pairing it in your computer's Bluetooth settings:
 
 - **Xbox:** hold the small pairing button on top until the Xbox logo flashes fast.
 - **PlayStation (DualShock 4 / DualSense):** hold **Share** (or **Create**) and **PS** until the light flashes.
@@ -245,7 +203,7 @@ The game reads the controller's name to show the right button names. Pads it doe
 
 ### Phones in the lobby
 
-A phone joined over Wi-Fi (QR code) shows that player's own card while you're in the lobby: tap a colour, a hat and (in team battles) A or B, type a name, then tap **Ready**. When the match starts, it turns back into the controller. The Android Bluetooth app still uses its "tap your name" editor for name and colour.
+A phone joined over Wi-Fi (QR code) shows that player's own card while you're in the lobby: tap a colour, a hat and (in team battles) A or B, type a name, then tap **Ready**. When the match starts, it turns back into the controller.
 
 ### Menus with a controller
 
@@ -272,14 +230,14 @@ The classic Wii Play Tanks controls:
 2. Set it to **mode 4**: press its **Mode** button until the 4th light is lit.
 3. Sync each Wii Remote to the bar: press the bar's **Sync** button, then the red **sync** button inside the remote's battery cover. The bar's light for that slot stays on. Plug in the Nunchuks.
 4. Open the game with the start script, in **Chrome** or **Edge**.
-5. Pick **Wii Remote + Nunchuk (DolphinBar)** in a player card's **Controller** menu.
-   - The first time, the browser asks to use **Nintendo RVL-CNT-01**. Pick it and click **Connect**. After that it isn't asked again.
-   - The bar always shows four slots, even empty ones. The game checks them all and takes the one with a remote in it. If several free remotes are linked, press **A** on the one you want.
+5. Pick **Controller** in a player card's menu and press **A** on the Wii Remote (or just press A on a free remote to join).
+   - In Chrome or Edge, the very first time, click **Allow a Wii Remote (first time only)** on the card and pick **Nintendo RVL-CNT-01**. The Windows app allows it by itself.
+   - The bar always shows four slots, even empty ones; the game checks them all and takes the one with a remote in it.
 6. In menus, the Wii Remote is a pointer: aim at a button and press **A** to click it.
 
 If a remote turns itself off, press any button on it. It links back to the bar and the game picks it up again by itself; a match pauses while it's gone.
 
-**Without a DolphinBar:** pair the remote with the computer over Bluetooth (Windows: Settings → Bluetooth & devices → Add device → Bluetooth, press the red **sync** button, pick **Nintendo RVL-CNT-01**, skip the PIN), then pick the same menu option. Aiming then needs a separate sensor bar.
+**Without a DolphinBar:** pair the remote with the computer over Bluetooth (Windows: Settings → Bluetooth & devices → Add device → Bluetooth, press the red **sync** button, pick **Nintendo RVL-CNT-01**, skip the PIN), then pick **Controller** the same way. Aiming then needs a separate sensor bar.
 
 Without a sensor bar, the remote falls back to **tilt aiming**: tip it forwards/back and twist it left/right to swing the turret.
 Without a Nunchuk, the D-pad drives.
@@ -420,34 +378,12 @@ You draw the left half; the right half is mirrored automatically, or rotated if 
 - Some networks stop devices from seeing each other: hotels, schools, cafés and many "guest" networks. There, or wherever the Wi-Fi keeps dropping out, make your own network instead. Turn on a phone's hotspot and connect the computer and the other phones to it; it doesn't need mobile data for this. A cheap travel router works too.
 - If the computer has several network connections (VPN, virtual machines), click **Try another address** under the QR code.
 
-**My Android phone isn't in Chrome's Bluetooth list.**
-- Make sure Ricochet Pad is open on the phone and says **WAITING FOR GAME**. It only advertises while it's on screen.
-- Make sure Bluetooth is on for both the phone and the computer.
-- Don't pair the phone in Windows or Android Bluetooth settings first. The game connects directly.
-- A phone can only control one player at a time. If it's already connected, it stops advertising.
-
-**The lobby says "Android app (Bluetooth) unavailable".**
-The page was opened as a file or in a browser without Web Bluetooth (Firefox and Safari don't have it).
-Use the start script and Chrome or Edge.
-
-**Linux.**
-Open `chrome://flags/#enable-experimental-web-platform-features`, enable it, and restart Chrome.
-You also need BlueZ 5.41 or newer.
-
 **A phone disconnected mid-match.**
 The game pauses and keeps trying to reconnect on its own.
 Wi-Fi phones come back to the same tank automatically.
-For the Android app:
-If you closed and reopened the app, Android may have switched to a new Bluetooth address.
-In that case, click **Re-pair … phone** on the pause screen and pick it again.
 
 **The controls feel laggy.**
-Keep the phones within a few metres of the computer and away from crowded 2.4 GHz gear.
-USB Bluetooth dongles at the back of a PC case can struggle, so try a short USB extension.
-
-**Leaving the app.**
-Back needs a double press, so a stray swipe mid-match doesn't close the controller.
-Switching away from the app disconnects it; the game pauses until you return.
+Keep the phones and the computer close to the Wi-Fi router (or use a phone hotspot), away from crowded 2.4 GHz gear.
 
 ---
 
@@ -467,7 +403,7 @@ game/                      Desktop game (plain HTML/CSS/JS, no build step)
   js/input.js              Keyboard, mouse and gamepad
   js/wiimote.js            Wii Remotes + Nunchuk over WebHID (IR pointer, tilt fallback, rumble)
   js/menunav.js            Menus with any controller (D-pad highlight, drop-down picker)
-  js/ble.js                Android app over Web Bluetooth
+  js/ble.js                Phone controller base (and the retired Bluetooth app link)
   js/wifi.js               Phone controllers over Wi-Fi (WebSocket via the launcher)
   js/vendor/qrcode.js      QR code generator (Kazuhiko Arase, MIT licence)
   pad/                     Wi-Fi controller page served to phones
@@ -486,7 +422,7 @@ tablet-android/            Android tablet app: full-screen WebView, local server
   app/src/main/assets/rr-android/bridge.js  window.rrApp for the game's Settings screen
   test/run.sh              Tests for the server, relay and updater on a normal JVM
 .github/workflows/android-tablet.yml  Builds the tablet APK and publishes it (tablet-latest)
-controller-android/        Ricochet Pad (Kotlin, no external libraries)
+controller-android/        Ricochet Pad, the retired Bluetooth phone app (kept, no longer built)
 launcher/server.py         Local server for macOS / Linux (game, Wi-Fi controller, relay)
 launcher/RicochetServer.cs Same server for Windows, compiled by start-game.ps1
 docs/PROTOCOL.md           Controller protocol (Bluetooth and Wi-Fi)

@@ -396,6 +396,9 @@ window.RR = window.RR || {};
   const Wiimote = {
     busy: false,
 
+    // look for allowed remotes right now (a card just started waiting for one)
+    rescan() { scanJoin(); },
+
     watchJoin(cb, when) {
       joinCb = cb;
       joinWhen = when;

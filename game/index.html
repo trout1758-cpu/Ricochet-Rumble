@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Ricochet Rumble</title>
-  <meta name="description" content="A 2–4 player toy tank battle with ricocheting shells. Use Android phones as Bluetooth controllers.">
+  <meta name="description" content="A 2–4 player toy tank battle with ricocheting shells. Phones join over Wi-Fi by scanning a QR code.">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='6' y='16' width='52' height='9' rx='4' fill='%232d2b2a'/%3E%3Crect x='6' y='39' width='52' height='9' rx='4' fill='%232d2b2a'/%3E%3Crect x='11' y='20' width='42' height='24' rx='5' fill='%23e8553f'/%3E%3Crect x='32' y='29' width='28' height='6' rx='2' fill='%23a8321f'/%3E%3Ccircle cx='32' cy='32' r='10' fill='%23ff8a6e'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -97,16 +97,12 @@
             <select class="ctrl-select" aria-label="Controller" data-nav-commit>
               <option value="none">No controller</option>
               <option value="wifi">Phone (joined with the QR code)</option>
-              <option value="phone">Android app (Bluetooth)</option>
-              <option value="wiimote">Wii Remote + Nunchuk (DolphinBar)</option>
-              <option value="pad-xbox">Xbox controller</option>
-              <option value="pad-ps">PlayStation controller</option>
-              <option value="pad-switch">Nintendo Switch controller</option>
-              <option value="gamepad">Other gamepad</option>
+              <option value="pad">Controller (Xbox, PlayStation, Switch, Wii Remote…)</option>
               <option value="kbm">Keyboard + mouse</option>
               <option value="arrows">Arrow keys</option>
               <option value="cpu">Computer</option>
             </select>
+            <button class="btn small ghost ctrl-allow-wii hidden">Allow a Wii Remote (first time only)</button>
           </div>
           <button class="btn ready-btn" disabled>Ready</button>
         </div>
@@ -129,16 +125,12 @@
             <select class="ctrl-select" aria-label="Controller" data-nav-commit>
               <option value="none">No controller</option>
               <option value="wifi">Phone (joined with the QR code)</option>
-              <option value="phone">Android app (Bluetooth)</option>
-              <option value="wiimote">Wii Remote + Nunchuk (DolphinBar)</option>
-              <option value="pad-xbox">Xbox controller</option>
-              <option value="pad-ps">PlayStation controller</option>
-              <option value="pad-switch">Nintendo Switch controller</option>
-              <option value="gamepad">Other gamepad</option>
+              <option value="pad">Controller (Xbox, PlayStation, Switch, Wii Remote…)</option>
               <option value="kbm">Keyboard + mouse</option>
               <option value="arrows">Arrow keys</option>
               <option value="cpu">Computer</option>
             </select>
+            <button class="btn small ghost ctrl-allow-wii hidden">Allow a Wii Remote (first time only)</button>
           </div>
           <button class="btn ready-btn" disabled>Ready</button>
         </div>
@@ -161,16 +153,12 @@
             <select class="ctrl-select" aria-label="Controller" data-nav-commit>
               <option value="none">No controller</option>
               <option value="wifi">Phone (joined with the QR code)</option>
-              <option value="phone">Android app (Bluetooth)</option>
-              <option value="wiimote">Wii Remote + Nunchuk (DolphinBar)</option>
-              <option value="pad-xbox">Xbox controller</option>
-              <option value="pad-ps">PlayStation controller</option>
-              <option value="pad-switch">Nintendo Switch controller</option>
-              <option value="gamepad">Other gamepad</option>
+              <option value="pad">Controller (Xbox, PlayStation, Switch, Wii Remote…)</option>
               <option value="kbm">Keyboard + mouse</option>
               <option value="arrows">Arrow keys</option>
               <option value="cpu">Computer</option>
             </select>
+            <button class="btn small ghost ctrl-allow-wii hidden">Allow a Wii Remote (first time only)</button>
           </div>
           <button class="btn ready-btn" disabled>Ready</button>
         </div>
@@ -193,16 +181,12 @@
             <select class="ctrl-select" aria-label="Controller" data-nav-commit>
               <option value="none">No controller</option>
               <option value="wifi">Phone (joined with the QR code)</option>
-              <option value="phone">Android app (Bluetooth)</option>
-              <option value="wiimote">Wii Remote + Nunchuk (DolphinBar)</option>
-              <option value="pad-xbox">Xbox controller</option>
-              <option value="pad-ps">PlayStation controller</option>
-              <option value="pad-switch">Nintendo Switch controller</option>
-              <option value="gamepad">Other gamepad</option>
+              <option value="pad">Controller (Xbox, PlayStation, Switch, Wii Remote…)</option>
               <option value="kbm">Keyboard + mouse</option>
               <option value="arrows">Arrow keys</option>
               <option value="cpu">Computer</option>
             </select>
+            <button class="btn small ghost ctrl-allow-wii hidden">Allow a Wii Remote (first time only)</button>
           </div>
           <button class="btn ready-btn" disabled>Ready</button>
         </div>
@@ -386,11 +370,10 @@
           <h3>Phone controller</h3>
           <ul>
             <li><b>Any phone (iPhone or Android):</b> scan the lobby's <b>Scan to join</b> QR code with the phone's camera. Phones join in the order they scan, on the next open spot (up to four). The phone must be on the same Wi-Fi as this computer.</li>
-            <li><b>Android app (Bluetooth):</b> open Ricochet Pad, click <b>Android app</b> and pick the phone.</li>
             <li><b>Left thumb:</b> drag to drive.</li>
             <li><b>Right thumb:</b> drag to aim, let go to fire. Tap to fire where the turret points. Slide back to the middle to cancel.</li>
             <li><b>Mine</b> is the button in the top middle; <b>Pause</b> is top right.</li>
-            <li>In the lobby, a Wi-Fi phone shows your own player card: tap your colour, hat and team, type your name, then tap <b>Ready</b>. (The Android Bluetooth app: tap your name to change it and your colour.)</li>
+            <li>In the lobby, a Wi-Fi phone shows your own player card: tap your colour, hat and team, type your name, then tap <b>Ready</b>.</li>
           </ul>
           <h3>Wii Remote + Nunchuk</h3>
           <ul>
@@ -403,7 +386,7 @@
           <ul>
             <li><b>Keys + mouse:</b> WASD drive, mouse aim, click fire, Space / right-click mine.</li>
             <li><b>Arrow keys:</b> arrows drive, <kbd>,</kbd> <kbd>.</kbd> turn turret, <kbd>/</kbd> or <kbd>Enter</kbd> fire, <kbd>Right Shift</kbd> mine.</li>
-            <li><b>Xbox / PlayStation / Switch controllers:</b> left stick (or D-pad) drive, right stick aim. Fire: RT/RB/A (Xbox), R2/R1/✕ (PlayStation), ZR/R/B (Switch). Mine: LT/LB/B, L2/L1/○, ZL/L/A. Start/Options/+ pauses.</li>
+            <li><b>Controllers:</b> pick <b>Controller</b> on a player card, then press a button on the one you want (Xbox, PlayStation, Switch Pro, Joy-Cons, other gamepads, or a Wii Remote). Or just press a button on a free controller to join. <b>Xbox / PlayStation / Switch controllers:</b> left stick (or D-pad) drive, right stick aim. Fire: RT/RB/A (Xbox), R2/R1/✕ (PlayStation), ZR/R/B (Switch). Mine: LT/LB/B, L2/L1/○, ZL/L/A. Start/Options/+ pauses.</li>
             <li><b>Other gamepads and single Joy-Cons:</b> stick or D-pad drives; with no second stick the turret points the way you drive.</li>
           </ul>
         </div>

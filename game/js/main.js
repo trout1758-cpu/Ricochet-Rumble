@@ -239,6 +239,11 @@
 
   function goLobby() {
     clearReplay();
+    if ('hid' in navigator && !game.wiiAllowed) {
+      navigator.hid.getDevices().then((ds) => {
+        if (ds.some((d) => d.vendorId === 0x057e)) { game.wiiAllowed = true; refreshLobby(); }
+      }).catch(() => {});
+    }
     game.state = 'lobby';
     game.paused = false;
     game.lobbyCountdown = 0;
@@ -408,6 +413,13 @@
           chooseController(i, sel.value);
         }
       });
+      $('.ctrl-allow-wii', card).addEventListener('click', async (e) => {
+        e.currentTarget.blur();
+        game.gamepadWait = null;
+        await chooseController(i, 'wiimote');
+        if (players[i].controller && players[i].controller.kind === 'wiimote') game.wiiAllowed = true;
+        refreshLobby();
+      });
       $('.ready-btn', card).addEventListener('click', (e) => {
         e.currentTarget.blur();
         toggleReady(i);
@@ -431,7 +443,9 @@
 
     const problem = RR.BLE.problem();
     const onTablet = !!(window.rrApp && window.rrApp.platform === 'android');
-    $('#ble-note').textContent = problem && !onTablet ? 'Android app (Bluetooth) unavailable: ' + problem : '';
+    // (the Ricochet Pad Bluetooth app is retired; phones join over Wi-Fi)
+    $('#ble-note').textContent = '';
+    void problem; void onTablet;
 
     $('#join-other').addEventListener('click', (e) => {
       e.currentTarget.blur();
@@ -740,7 +754,7 @@
         icon.dataset.kind = 'gamepad';
         icon.dataset.state = 'waiting';
         name.textContent = 'Press a button…';
-        detail.textContent = { 'pad-xbox': 'on the Xbox controller', 'pad-ps': 'on the PlayStation controller', 'pad-switch': 'on the Switch controller' }[game.gamepadWait.src] || 'on the gamepad you want to use';
+        detail.textContent = 'on the controller you want: Xbox, PlayStation, Switch' + ('hid' in navigator ? ' or Wii Remote' : '');
       } else if (ctl) {
         icon.dataset.kind = ctl.kind;
         name.textContent = ctl.label;
@@ -757,12 +771,12 @@
       }
       const wifiOpt = $('.ctrl-select option[value="wifi"]', card);
       wifiOpt.hidden = wifiOpt.disabled = !(ctl && ctl.kind === 'wifi');
-      const noHid = !('hid' in navigator), noBt = !('bluetooth' in navigator) && !!(window.rrApp && window.rrApp.platform === 'android');
-      $('.ctrl-select option[value="wiimote"]', card).hidden = noHid && !(ctl && ctl.kind === 'wiimote');
-      $('.ctrl-select option[value="phone"]', card).hidden = noBt && !(ctl && ctl.kind === 'phone');
+      // in a plain browser, a Wii Remote needs one click the first time to allow it
+      // (the Windows app allows them by itself)
+      $('.ctrl-allow-wii', card).classList.toggle('hidden', !(game.gamepadWait && game.gamepadWait.player === i && 'hid' in navigator && !window.rrApp && !game.wiiAllowed));
       const sel = $('.ctrl-select', card);
-      const showing = game.gamepadWait && game.gamepadWait.player === i ? (game.gamepadWait.src || 'gamepad')
-          : ctl ? (ctl.kind === 'gamepad' ? ctl.choice || 'gamepad' : ctl.kind) : 'none';
+      const showing = game.gamepadWait && game.gamepadWait.player === i ? 'pad'
+        : ctl ? (ctl.kind === 'gamepad' || ctl.kind === 'wiimote' ? 'pad' : ctl.kind) : 'none';
       if (document.activeElement !== sel && !sel.dataset.pending) sel.value = showing;
       const rb = $('.ready-btn', card);
       rb.disabled = !ctl;
@@ -850,14 +864,11 @@
         toast(err && err.name === 'NoRemote' ? err.message : 'Could not use that Wii Remote: ' + (err && err.message ? err.message : err), '#ff5a4a', 7000);
         refreshLobby();
       }
-    } else if (src === 'gamepad' || src.startsWith('pad-')) {
-      game.gamepadWait = { player: i, src, until: performance.now() + 12000 };
-      const tips = {
-        'pad-xbox': 'Connect the Xbox controller (USB, or Bluetooth: hold the pairing button), then press any button on it.',
-        'pad-ps': 'Connect the PlayStation controller (USB, or Bluetooth: hold Share/Create + PS), then press any button on it.',
-        'pad-switch': 'Connect the Switch controller (USB, or Bluetooth: hold the sync button), then press any button on it.',
-      };
-      if (RR.Input.gamepads().length === 0 || tips[src]) toast(tips[src] || 'Connect a gamepad, then press any of its buttons.', colorOf(i).body, 6000);
+    } else if (src === 'pad' || src === 'gamepad' || src.startsWith('pad-')) {
+      // any controller: the first free gamepad or Wii Remote to press a button gets this card
+      game.gamepadWait = { player: i, src: 'pad', until: performance.now() + 20000 };
+      if (RR.Wiimote.rescan) RR.Wiimote.rescan();
+      toast(`Press a button on the controller for ${players[i].name}.`, colorOf(i).body, 4000);
       refreshLobby();
     } else if (src === 'phone') {
       const problem = RR.BLE.problem();
@@ -987,9 +998,8 @@
           if (used.has(pad.index)) continue;
           if (pad.buttons.some((b) => b.pressed)) {
             const i = game.gamepadWait.player;
-            const src = game.gamepadWait.src || 'gamepad';
             game.gamepadWait = null;
-            assignController(i, new RR.GamepadController(pad, src));
+            assignController(i, new RR.GamepadController(pad, padChoice(pad)));
             break;
           }
         }
@@ -1546,8 +1556,15 @@
       if (players[0].controller) return;
     }
     if (game.state !== 'lobby') return;
-    const i = freeSlot();
+    let i;
+    if (game.gamepadWait) {
+      i = game.gamepadWait.player;
+      game.gamepadWait = null;
+    } else {
+      i = freeSlot();
+    }
     if (i < 0) return;
+    game.wiiAllowed = true;
     RR.Wiimote.adopt(dev).then((ctl) => {
       if (players[i].controller) {
         const j = freeSlot();

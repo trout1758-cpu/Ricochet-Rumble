@@ -1,13 +1,8 @@
 name: Android controller APK
 
+# Ricochet Pad is retired: phones join the game over Wi-Fi now. The code is
+# kept, and this build only runs when started by hand from the Actions tab.
 on:
-  push:
-    paths:
-      - 'controller-android/**'
-      - '.github/workflows/android-controller.yml'
-  pull_request:
-    paths:
-      - 'controller-android/**'
   workflow_dispatch:
 
 permissions:

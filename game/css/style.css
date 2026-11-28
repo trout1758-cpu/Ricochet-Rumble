@@ -659,6 +659,8 @@ body.letterbox #letterbox-bars i { height: 7vh; }
 .start-col { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 8px; min-width: 0; }
 .start-col #btn-start { margin: 0; }
 
+.ctrl-allow-wii { width: 100%; }
+
 /* ---------- settings ---------- */
 .settings { width: min(92vw, 620px); text-align: left; }
 .settings h2 { text-align: center; }
